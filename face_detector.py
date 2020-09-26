@@ -11,7 +11,6 @@ class FaceDetector(object):
     def detect(self, img, paint = True, returnNewImage = False):
         # detect faces
         people = self.core.detect_faces(img)
-
         # paint rects onto images
         if paint:
             # clone the image first
