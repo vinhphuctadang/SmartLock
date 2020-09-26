@@ -24,7 +24,7 @@ class FaceDetector(object):
                     # top-left
                     (rect[0], rect[1]), 
                     # bottom-right
-                    (rect[0]+rect[2], rect[1] + rect[3]), 
+                    (rect[0] + rect[2], rect[1] + rect[3]), 
                     # color as RGB
                     (0x0, 0xff, 0x0), 
                     # thick ness
