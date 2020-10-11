@@ -5,7 +5,7 @@ import logger
 import os 
 
 # CONFIG: replace video URI here
-VIDEO_URI = './data/quib00000000.mov'
+VIDEO_URI = './data/b1910439.mp4'
 FACE_SIZE = (128, 128)
 
 # utils
@@ -37,26 +37,26 @@ def main():
         if not ret:
             break 
         print("%d read" % frame_count)
-        # if frame_count % 5 != 0: 
-        #     frame_count += 1
-        #     continue
+        if frame_count % 5 != 0: 
+            frame_count += 1
+            continue
 
-        # frame = cv2.rotate(frame, cv2.cv2.ROTATE_90_CLOCKWISE)
+        frame = cv2.rotate(frame, cv2.cv2.ROTATE_90_CLOCKWISE)
         people, rectedImage = detector.detect(frame, returnNewImage=True)
 
-        if people:
+        if len(people):
             biggest = None 
             for person in people:
                 # get box having biggest area, and consider it the main person
-                if not biggest or area(biggest) < area(person['box']):
-                    biggest = person['box']
+                if not biggest or area(biggest) < area(person):
+                    biggest = person
                 
-                # scale        
-                region = frame[biggest[1]:biggest[1]+biggest[3], biggest[0]:biggest[0]+biggest[2]].copy()
-                region = cv2.resize(region, FACE_SIZE)
+            # scale        
+            region = frame[biggest[1]:biggest[1]+biggest[3], biggest[0]:biggest[0]+biggest[2]].copy()
+            region = cv2.resize(region, FACE_SIZE)
 
-                # write to file
-                cv2.imwrite(DATA_PATH+VIDEO_NAME+'_%d.jpg' % (frame_count), region)
+            # write to file
+            cv2.imwrite(DATA_PATH+VIDEO_NAME+'_%d.jpg' % (frame_count), region)
 
         frame_count += 1
         cv2.imshow('frame', rectedImage)

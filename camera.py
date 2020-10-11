@@ -1,29 +1,80 @@
-'''
-Reads camera from a REMOTE IP
-'''
-
 import cv2
 import numpy as np
 from face_detector import FaceDetector
+from face_wrapper import FaceWrapper
 import logger 
+import os 
 
-detector = FaceDetector()
-# change your camera HERE !!! 
-# or set it to 0 (i.e CAMERA_URL=0) in order to access built-in camera
-# CAMERA_URL = 'rtsp://192.168.0.103:8080/h264_ulaw.sdp'
-CAMERA_URL = 0
-# init capturer
-cap = cv2.VideoCapture(CAMERA_URL)
+# CONFIG: replace video URI here
+VIDEO_URI = './data/b1910439.mp4'
+FACE_SIZE = (128, 128)
 
-while(True):
-    ret, frame = cap.read()
-    people = detector.detect(frame)
-    logger.debug(people)
+# utils
+def getFilename(dir):
+    return os.path.basename(dir).split('.')[0]
 
-    cv2.imshow('frame', frame)
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
+def area(rect):
+    return rect[2] * rect[3]
 
-# destruction
-cap.release()
-cv2.destroyAllWindows()
+# logics
+VIDEO_NAME = getFilename(VIDEO_URI)
+logger.debug('Video name: %s' % VIDEO_NAME)
+
+def main():
+
+    frame_count = 0
+    DATA_PATH = 'faces/' + VIDEO_NAME + '/'
+
+    logger.debug("Loading saved model ...")
+    face = FaceWrapper()
+    face.load('./fc_saved.h5')
+
+    # new detector and frame capturer
+    detector = FaceDetector()
+    cap = cv2.VideoCapture(VIDEO_URI)
+
+    while(True):
+        ret, frame = cap.read()
+        if not ret:
+            logger.debug("End video")
+            break 
+
+        # frame = cv2.resize(frame, (frame.shape[1]//3, frame.shape[0]//3))
+        
+        frame = cv2.rotate(frame, cv2.cv2.ROTATE_90_CLOCKWISE)
+        people, rectedImage = detector.detect(frame, returnNewImage=True)
+        
+        if len(people):
+            biggest = None 
+            for person in people:
+                # get box having biggest area, and consider it the main person
+                box = person
+                
+                # scale        
+                region = frame[box[1]:box[1]+box[3], box[0]:box[0]+box[2]].copy()
+                region = cv2.resize(region, FACE_SIZE)
+
+                # predict 
+                label = np.argmax(face.predict([region]))
+                
+                # draw label
+                rectedImage = cv2.putText(
+                    rectedImage, # canvas
+                    '%d' % label, # text
+                    (box[0], box[1] + 20), # bottom-left corner
+                    cv2.FONT_HERSHEY_SIMPLEX, # font   
+                    1, # font scale
+                    (0x0, 0xff, 0x0), 
+                    2, # thickness
+                    cv2.LINE_AA # line type
+                )
+                                
+        cv2.imshow('frame', rectedImage)
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+    # destruction
+    cap.release()
+    cv2.destroyAllWindows()
+
+main()
