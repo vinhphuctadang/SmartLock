@@ -4,15 +4,16 @@ from face_detector import FaceDetector
 import logger 
 import os 
 
+# CONFIG: replace video URI here
+VIDEO_URI = './data/quib00000000.mov'
+FACE_SIZE = (128, 128)
+
+# utils
 def getFilename(dir):
     return os.path.basename(dir).split('.')[0]
 
-# return area of the rect
 def area(rect):
     return rect[2] * rect[3]
-# CONFIG: replace video URI here
-VIDEO_URI = './data/b1910439.mp4'
-FACE_SIZE = (128, 128)
 
 # logics
 VIDEO_NAME = getFilename(VIDEO_URI)
@@ -35,12 +36,12 @@ def main():
         ret, frame = cap.read()
         if not ret:
             break 
+        print("%d read" % frame_count)
+        # if frame_count % 5 != 0: 
+        #     frame_count += 1
+        #     continue
 
-        if frame_count % 5 != 0: 
-            frame_count += 1
-            continue
-
-        frame = cv2.rotate(frame, cv2.cv2.ROTATE_90_CLOCKWISE)
+        # frame = cv2.rotate(frame, cv2.cv2.ROTATE_90_CLOCKWISE)
         people, rectedImage = detector.detect(frame, returnNewImage=True)
 
         if people:

@@ -10,8 +10,8 @@ import logger
 detector = FaceDetector()
 # change your camera HERE !!! 
 # or set it to 0 (i.e CAMERA_URL=0) in order to access built-in camera
-CAMERA_URL = 'rtsp://192.168.0.103:8080/h264_ulaw.sdp'
-
+# CAMERA_URL = 'rtsp://192.168.0.103:8080/h264_ulaw.sdp'
+CAMERA_URL = 0
 # init capturer
 cap = cv2.VideoCapture(CAMERA_URL)
 
