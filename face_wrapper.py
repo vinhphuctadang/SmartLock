@@ -7,6 +7,8 @@ import time
 import numpy as np 
 
 class FaceWrapper:
+
+
     def __init__(self):
         # configs goes here
         self.faceWidth = 128
@@ -15,7 +17,16 @@ class FaceWrapper:
         self.datasetDir = './faces'
         self.model = None
 
+        self._import_dataset = None 
+        self._preprocess = None 
+        self._build_model = None 
+        self._train = None
+        self._predict = None 
+
     def importDataset(self):
+
+        if self._import_dataset:
+            return self._import_dataset()
         # preprocess training data
         train_datagen = keras.preprocessing.image.ImageDataGenerator(rescale=1./255, validation_split=1./3)
 
@@ -40,7 +51,15 @@ class FaceWrapper:
 
         return train_set, test_set
 
+    def preprocess(self, X):
+        if self._preprocess:
+            self._preprocess(X)
+        return X 
+
     def buildModel(self):
+        if self._build_model:
+            return self._build_model()
+
         model = keras.Sequential([
             keras.layers.Flatten(input_shape=(self.faceHeight, self.faceWidth, 3)),
             keras.layers.Dense(32, activation='relu'),
@@ -50,15 +69,20 @@ class FaceWrapper:
         model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
         return model
 
-    
     def runWorkFlow(self, epochs=20): # exec the whole workflow
         train, test = self.importDataset()
+        train = self.preprocess(train)
+        test = self.preprocess(test)
         self.model = self.buildModel()
-        logger.debug(train, test)
+        # logger.debug(train, test)
         self.train(train, test, epochs=epochs)
         
     def train(self, train_set, test_set, epochs=20):
-        self.model.fit(
+
+        if self._train:
+            return self._train(train_set, test_set)
+
+        return self.model.fit(
             train_set, # data to train, a format of (X, y)
             steps_per_epoch=len(train_set), # The number of batch iterations before a training epoch is considered finished. Ignore if whole data is load, in our case, we need this in order to iterate over batches; hence make sure that generator can generate at least: steps_per_epoch * epochs batches
             epochs=epochs, # number of epochs, i.e times that iteration of updating weights goes
@@ -67,6 +91,8 @@ class FaceWrapper:
         )
 
     def predict(self, X):
+        if self._predict:
+            self._predict(X)
         return self.model.predict(np.array(X))
         
     def save(self, id):
