@@ -6,34 +6,27 @@ import logger
 import os 
 
 # CONFIG: replace video URI here
-VIDEO_URI = './data/b1910439.mp4'
+VIDEO_URI = 0
 FACE_SIZE = (128, 128)
 
 # utils
-def getFilename(dir):
-    return os.path.basename(dir).split('.')[0]
 
 def area(rect):
     return rect[2] * rect[3]
 
-# logics
-VIDEO_NAME = getFilename(VIDEO_URI)
-logger.debug('Video name: %s' % VIDEO_NAME)
-
 def main():
 
     frame_count = 0
-    DATA_PATH = 'faces/' + VIDEO_NAME + '/'
 
     logger.debug("Loading saved model ...")
     face = FaceWrapper()
-    face.load('./fc_saved.h5')
+    face.load('./models/fc_saved.h5')
 
     # new detector and frame capturer
     detector = FaceDetector()
     cap = cv2.VideoCapture(VIDEO_URI)
 
-    while(True):
+    while True:
         ret, frame = cap.read()
         if not ret:
             logger.debug("End video")
@@ -41,7 +34,7 @@ def main():
 
         # frame = cv2.resize(frame, (frame.shape[1]//3, frame.shape[0]//3))
         
-        frame = cv2.rotate(frame, cv2.cv2.ROTATE_90_CLOCKWISE)
+        # frame = cv2.rotate(frame, cv2.cv2.ROTATE_90_CLOCKWISE)
         people, rectedImage = detector.detect(frame, returnNewImage=True)
         
         if len(people):

@@ -7,7 +7,7 @@ class FaceDetector(object):
     
     def __init__(self):
         # set core model
-        self.core = CascadeClassifier('haarcascade_frontalface_default.xml')
+        self.core = CascadeClassifier('models/haarcascade_frontalface_default.xml')
 
     def detect(self, img, paint = True, returnNewImage = False):
         # detect faces
