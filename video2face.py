@@ -5,7 +5,7 @@ import logger
 import os 
 
 # CONFIG: replace video URI here
-VIDEO_URI = './data/b1910439.mp4'
+VIDEO_URI = './data/phucb1709618.mov'
 FACE_SIZE = (128, 128)
 
 # utils
@@ -41,7 +41,7 @@ def main():
             frame_count += 1
             continue
 
-        frame = cv2.rotate(frame, cv2.cv2.ROTATE_90_CLOCKWISE)
+        # frame = cv2.rotate(frame, cv2.cv2.ROTATE_90_CLOCKWISE)
         people, rectedImage = detector.detect(frame, returnNewImage=True)
 
         if len(people):

@@ -1,17 +1,25 @@
 import os
-from mtcnn import MTCNN
+# from mtcnn import MTCNN
 import cv2
 from cv2 import CascadeClassifier
+# import face_recognition
 
+
+# FaceDetector class
 class FaceDetector(object): 
-    
     def __init__(self):
+        #
+        # More about cascade models: https://docs.opencv.org/3.4/db/d28/tutorial_cascade_classifier.html 
+        #
+
         # set core model
         self.core = CascadeClassifier('models/haarcascade_frontalface_default.xml')
 
     def detect(self, img, paint = True, returnNewImage = False):
+        
         # detect faces
         people = [ list(x) for x in self.core.detectMultiScale(img) ]
+
         # paint rects onto images
         if paint:
             # clone the image first
@@ -43,7 +51,7 @@ if __name__=='__main__':
 
     # new detector to get people
     detector = FaceDetector()
-    people, new = detector.detect(root, returnNewImage=True)
+    people, new = detector.detect(root[:,:], returnNewImage=True)
     print(people)
 
     # show 
