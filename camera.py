@@ -10,7 +10,6 @@ VIDEO_URI = 0
 FACE_SIZE = (128, 128)
 
 # utils
-
 def area(rect):
     return rect[2] * rect[3]
 
@@ -20,7 +19,9 @@ def main():
 
     logger.debug("Loading saved model ...")
     face = FaceWrapper()
-    face.load('./models/fc_saved.h5')
+    face.load('sample')
+
+    
 
     # new detector and frame capturer
     detector = FaceDetector()
@@ -32,9 +33,6 @@ def main():
             logger.debug("End video")
             break 
 
-        # frame = cv2.resize(frame, (frame.shape[1]//3, frame.shape[0]//3))
-        
-        # frame = cv2.rotate(frame, cv2.cv2.ROTATE_90_CLOCKWISE)
         people, rectedImage = detector.detect(frame, returnNewImage=True)
         
         if len(people):
@@ -48,12 +46,12 @@ def main():
                 region = cv2.resize(region, FACE_SIZE)
 
                 # predict 
-                label = np.argmax(face.predict([region]))
+                label = face.classes[np.argmax(face.predict([region])[0])]
                 
                 # draw label
                 rectedImage = cv2.putText(
                     rectedImage, # canvas
-                    '%d' % label, # text
+                    label, # text
                     (box[0], box[1] + 20), # bottom-left corner
                     cv2.FONT_HERSHEY_SIMPLEX, # font   
                     1, # font scale
