@@ -8,6 +8,9 @@ from cv2 import CascadeClassifier
 # FaceDetector class
 class FaceDetector(object): 
     def __init__(self):
+        """Init FaceDetector
+        The FaceDetector will use pretrained CascadeClassifier model named haarcascade_frontalface
+        """
         #
         # More about cascade models: https://docs.opencv.org/3.4/db/d28/tutorial_cascade_classifier.html 
         #
@@ -16,7 +19,24 @@ class FaceDetector(object):
         self.core = CascadeClassifier('models/haarcascade_frontalface_default.xml')
 
     def detect(self, img, paint = True, returnNewImage = False):
+        """ Detect faces on image (give by img) and paint green rects onto it
+            Function use haarcascade_frontalface_default model
+        Args:
+            img (numpy.ndarray): The image, could be load with cv2.imread. Imread document on: https://docs.opencv.org/3.4/d4/da8/group__imgcodecs.html#ga288b8b3da0892bd651fce07b3bbd3a56
+            paint (bool, optional): . Defaults to True.
+            returnNewImage (bool, optional): Whether or not to return new image containing painted rects. Defaults to False.
+
+        Returns:
+            Basically it returns rectangular regions containing faces, then
+            If returnNewImage is true, functions also returns newImage with rects are painted on
         
+        Example: 
+            detector = FaceDetector()
+            frame = cv2.imread('<path_to_image>')
+            people, img = detector.detect(frame, returnNewImage=True)
+            cv2.imshow('people in image', img)
+        """
+
         # detect faces
         people = [ list(x) for x in self.core.detectMultiScale(img) ]
 

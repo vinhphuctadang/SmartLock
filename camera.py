@@ -21,6 +21,8 @@ def main():
     face = FaceWrapper()
     face.load('sample')
 
+    
+
     # new detector and frame capturer
     detector = FaceDetector()
     cap = cv2.VideoCapture(VIDEO_URI)
