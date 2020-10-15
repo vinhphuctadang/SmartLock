@@ -3,6 +3,11 @@ from tensorflow.keras import datasets, layers, models
 from face_wrapper import FaceWrapper as FW 
 
 def buildCNN(self):
+
+    """Build a CNN model, the build process is attached to the FaceWrapper workflow
+    Returns:
+        Keras model
+    """
     model = models.Sequential()
     model.add(layers.Conv2D(32, (3, 3), activation='relu', input_shape=(128, 128, 3)))
     model.add(layers.MaxPooling2D((2, 2)))
@@ -19,5 +24,6 @@ def main():
     face._build_model = buildCNN
     face.classes = ['phuc', 'quy']
 
+    # this will run the workflow as describe in flow.png
     face.runWorkFlow(epochs=3).save('sample')
 main()

@@ -1,3 +1,27 @@
+"""
+The script supports copying the face out of image and store image into ./faces folder 
+Filesystem structure
+|- data : storing raw datas (image/videos)
+|- faces
+|---- person_1
+|-------- person_1_1.png : the face image fixed size 
+|-------- person_1_2.png : the face image fixed size 
+|-------- person_1_3.png : the face image fixed size 
+|-------- person_1_4.png : the face image fixed size 
+|-------- person_1_5.png : the face image fixed size 
+|---- person_2
+|-------- person_2_1.png : the face image fixed size 
+|-------- person_2_2.png : the face image fixed size 
+|-------- person_2_3.png : the face image fixed size 
+|-------- person_2_4.png : the face image fixed size 
+|-------- person_2_5.png : the face image fixed size 
+
+Find these variable to config:
+
+VIDEO_URI = './data/phucb1709618.mov' # path to the video/images/=0 for camera
+FACE_SIZE = (128, 128) # Face size for scale, all data should have this size
+
+"""
 import cv2
 import numpy as np
 from face_detector import FaceDetector

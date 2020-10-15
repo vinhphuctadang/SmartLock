@@ -7,10 +7,11 @@ import time
 import numpy as np 
 import json
 
-'''
-FaceWrapper model 
-'''
 class FaceWrapper:
+    """FaceWrapper model is responsible for interventing preprocessing and training steps for experiments
+    Drawback: Temporarily no k-fold supported
+    """
+
     def __init__(self):
         # configs goes here
         self.faceWidth = 128
@@ -28,6 +29,7 @@ class FaceWrapper:
         self.history = None
 
         # we might want to override these function to intervent steps for researching
+        # steps of using these callback please refer to './train.py' for details
         self._import_dataset = None 
         self._preprocess = None 
         self._build_model = None 
