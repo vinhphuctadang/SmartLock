@@ -1,3 +1,4 @@
 /data
+/faces
 /__pycache__
 /models/*/*.h5
