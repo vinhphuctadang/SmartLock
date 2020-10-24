@@ -20,7 +20,6 @@ Find these variable to config:
 
 VIDEO_URI = './data/phucb1709618.mov' # path to the video/images/=0 for camera
 FACE_SIZE = (128, 128) # Face size for scale, all data should have this size
-
 """
 import cv2
 import numpy as np
