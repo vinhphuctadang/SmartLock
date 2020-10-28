@@ -10,7 +10,7 @@ import time
 """PERSON NAME, which work as an ID
 PLEASE CONFIG PERSON_NAME BEFORE RUNNING THE SCRIPT!!!
 """
-PERSON_NAME = 'phuc'
+PERSON_NAME = 'ngoc'
 
 # CONFIG: replace video URI here
 VIDEO_URI = 0
@@ -74,8 +74,6 @@ def main():
                 savedFrame = cv2.resize(frame, TARGET_SIZE)
                 cv2.imwrite('%s/%s_%d.jpg' % (PATH, PERSON_NAME, int(time.time()*1000)), savedFrame)
                 cv2.circle(frame, (15, 15), 10, (0x0, 0x0, 0xff), -1)
-
-
         
             frame = text(frame, (5, 60), convTime(time.time()-startTime))
                 
@@ -84,11 +82,11 @@ def main():
         key = cv2.waitKey(1) & 0xFF
         if key == ord('q'):
             break
-        if key == ord('p'):
+        if key == ord(' '):
             WRITE_TO_DISK = not WRITE_TO_DISK 
             frame_count = 0
             startTime = time.time()
-        
+
     # destruction
     cap.release()
     cv2.destroyAllWindows()

@@ -7,11 +7,8 @@ import os
 
 # CONFIG: replace video URI here
 VIDEO_URI = 0
-
-# This config is based on your camera qual
 FACE_SIZE = (512, 512)
 
-# Expected sample size
 TARGET_SIZE = (128, 128)
 
 # utils
@@ -21,25 +18,22 @@ def area(rect):
 def main():
 
     frame_count = 0
-
-    # logger.debug("Loading saved model ...")
-    # face = FaceWrapper()
-    # face.load('sample')
-
+    logger.debug("Loading saved model ...")
+    face = FaceWrapper()
+    face.load('sample')
     
-    # new detector and frame capturer
     detector = FaceDetector()
     cap = cv2.VideoCapture(VIDEO_URI)
+
+    print(face.classes)
     while True:
-        ret, frame = cap.read()
-        if not ret:
-            logger.debug("End video")
-            break 
+        # ret, frame = cap.read()
+        # if not ret:
+        #     logger.debug("End video")
+        #     break 
         
-        # frame = cv2.flip(frame[:FACE_SIZE[1], :FACE_SIZE[0]].copy(), 1)
-        frame = cv2.flip(frame, 1)
+        # frame = cv2.flip(frame, 1)
         # people, rectedImage = detector.detect(frame, returnNewImage=True)
-        
         # if len(people):
         #     biggest = None 
         #     for person in people:
@@ -65,7 +59,36 @@ def main():
         #             cv2.LINE_AA # line type
         #         )
                                 
-        cv2.imshow('frame', frame)
+        # cv2.imshow('frame', rectedImage)
+        ret, frame = cap.read()
+        if not ret:
+            logger.debug("End video")
+            break
+        
+        pivotY = (frame.shape[0] - FACE_SIZE[0]) // 2
+        pivotX = (frame.shape[1] - FACE_SIZE[0]) // 2
+
+        frame = cv2.flip(frame[pivotY:pivotY+FACE_SIZE[1], pivotX:pivotX+FACE_SIZE[0]], 1)
+        predictFrame = cv2.resize(frame, TARGET_SIZE) * 1.0/255
+
+        # print(predictFrame)
+        preds = face.predict([predictFrame])[0]
+
+        logger.debug("Predict value:", preds)
+        label = face.classes[np.argmax(preds)]
+        
+        rectedImage = cv2.putText(
+                    frame, # canvas
+                    label, # text
+                    (10, 50), 
+                    cv2.FONT_HERSHEY_SIMPLEX, # font   
+                    1, # font scale
+                    (0x0, 0xff, 0x0), 
+                    2, # thickness
+                    cv2.LINE_AA # line type
+        )
+        cv2.imshow('classification', frame)
+
         if cv2.waitKey(1) & 0xFF == ord('q'):
             break
 

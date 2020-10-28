@@ -15,14 +15,14 @@ def buildCNN(self):
     model.add(layers.MaxPooling2D((2, 2)))
     model.add(layers.Flatten())
     model.add(layers.Dense(16, activation='relu'))
-    model.add(layers.Dense(2, activation='softmax')) # no softmax activation applied, we will use logit
+    model.add(layers.Dense(3, activation='softmax')) # no softmax activation applied, we will use logit
     model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
     return model
 
 def main():
     face = FW()
     face._build_model = buildCNN
-    face.classes = ['phuc', 'quy']
+    face.classes = ['phuc', 'me', 'ngoc']
 
     # this will run the workflow as describe in flow.png
     face.runWorkFlow(epochs=3).save('sample')

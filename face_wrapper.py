@@ -7,6 +7,9 @@ import time
 import numpy as np 
 import json
 
+
+import matplotlib.pyplot as plt
+
 class FaceWrapper:
     """FaceWrapper model is responsible for interventing preprocessing and training steps for experiments
     Drawback: Temporarily no k-fold supported
@@ -59,7 +62,7 @@ class FaceWrapper:
             target_size=(self.faceHeight, self.faceWidth),
             class_mode='categorical', 
             batch_size=self.batchSize, 
-            subset="validation"
+            subset="validation",
         )
 
         return train_set, test_set
@@ -111,6 +114,7 @@ class FaceWrapper:
             return self._predict(self, X)
 
         predictions = self.model.predict(np.array(X))
+        # logger.debug(predictions)
         return predictions
         
     def save(self, id):
