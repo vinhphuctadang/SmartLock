@@ -27,10 +27,11 @@ def extract_features(img):
         face_bounding_boxes = fr.face_locations(img)
         # If detecting image contains exactly one face
         if len(face_bounding_boxes) == 1:
-            face_enc = fr.face_encodings(img, face_bounding_boxes)[0]
+            face_enc = fr.face_encodings(img, face_bounding_boxes)
             box = np.array(face_bounding_boxes[0])
             box = box * ratio
-            return [face_enc], np.array(box, dtype='int64')
+            # box: int required
+            return face_enc, np.array(box, dtype='int64')
         else:
             return [], []
     except:
