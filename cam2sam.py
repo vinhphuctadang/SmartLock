@@ -5,19 +5,25 @@ import cv2
 import logger
 import os
 import time
+import sys
 
 # PERSON NAME
 """PERSON NAME, which work as an ID
 PLEASE CONFIG PERSON_NAME BEFORE RUNNING THE SCRIPT!!!
 """
-PERSON_NAME = 'tinh'
+if len(sys.argv) > 1:
+    PERSON_NAME = sys.argv[1]
+else:
+    raise('Enter your name of sample.')
 
 # CONFIG: replace video URI here
 VIDEO_URI = 0
 # This config is based on your camera qual
-FACE_SIZE = (350, 400)
+FACE_SIZE = (400, 400)
 # Expected sample size
 TARGET_SIZE = (128, 128)
+
+print(PERSON_NAME)
 # SAVE PATH
 PATH = './faces/%s' % PERSON_NAME
 if not os.path.isdir(PATH):
