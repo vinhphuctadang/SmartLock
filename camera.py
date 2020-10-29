@@ -42,9 +42,6 @@ def main():
     process_this_frame = True
     # logger.debug("Loading saved model ...")
     clf = load('faces.model')
-    classes = sorted(os.listdir('faces'))
-    if '.DS_Store' in classes:
-        del classes[0]
     # frame capturer
     cap = cv2.VideoCapture(VIDEO_URI)
     while True:
@@ -63,7 +60,7 @@ def main():
         if process_this_frame:
             features, box = extract_features(frame)
             if len(features) == 1:
-                idx = clf.predict(features)[0]
+                label = clf.predict(features)[0]
                 # print(clf.predict_proba(features))
                 top, right, bottom, left = box
                 # Draw a box around the face
@@ -72,10 +69,10 @@ def main():
 
                 # Draw a label with a name below the face
                 labelSize = cv2.getTextSize(
-                    classes[idx], fontFace, fontScale, thickness)[0]
+                    label, fontFace, fontScale, thickness)[0]
                 cv2.rectangle(frame, (left-1, top),
                               (left+labelSize[0], top-labelSize[1]-20), (0, 255, 0), cv2.FILLED)
-                cv2.putText(frame, classes[idx], (left, top - 10),
+                cv2.putText(frame, label, (left, top - 10),
                             fontFace, fontScale=fontScale, color=(0, 0, 0), thickness=thickness)
 
         # # accelerate display frame
