@@ -64,7 +64,6 @@ class FaceWrapper:
             batch_size=self.batchSize, 
             subset="validation",
         )
-
         return train_set, test_set
 
     def preprocess(self, X):
@@ -89,6 +88,7 @@ class FaceWrapper:
         train, test = self.importDataset()
         train = self.preprocess(train)
         test = self.preprocess(test)
+        
         self.model = self.buildModel()
         # logger.debug(train, test)
         self.train(train, test, epochs=epochs)
