@@ -2,3 +2,4 @@
 /faces
 /__pycache__
 /models/*/*.h5
+.DS_Store
