@@ -133,8 +133,9 @@ def main():
         pivotX = (frame.shape[1] - FACE_SIZE[0]) // 2
 
         frame = cv2.flip(frame[pivotY:pivotY+FACE_SIZE[1],
-                               pivotX:pivotX+FACE_SIZE[0]], 1)
-        # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+                               pivotX:pivotX+FACE_SIZE[0]], 0)
+	frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
+	# frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
         # Only process every other frame of video to save time
         if process_this_frame:
