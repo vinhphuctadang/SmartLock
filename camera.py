@@ -94,7 +94,7 @@ def LBP(image, numPoints, radius, eps=1e-7):
 def main():
     process_this_frame = True
     # logger.debug("Loading saved model ...")
-    clf = load('faces.model')
+    clf = load('faces2.model')
     # frame capturer
     cap = cv2.VideoCapture(VIDEO_URI)
     while True:
