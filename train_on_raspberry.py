@@ -18,7 +18,7 @@ import time
 import cv2
 import os
 
-TARGET_SIZE = (64, 64)
+TARGET_SIZE = (128, 128)
 
 
 def extract_features(img):
