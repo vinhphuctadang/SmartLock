@@ -18,13 +18,13 @@ import time
 import cv2
 import os
 
-TARGET_SIZE = (128, 128)
+TARGET_SIZE = (64, 64)
 
 
 def extract_features(img):
     # resize to TARGET_SIZE
     # to use with face_recognition faster
-    # img = cv2.resize(img, TARGET_SIZE)
+    img = cv2.resize(img, TARGET_SIZE)
     try:
         face_bounding_boxes = fr.face_locations(img)
         # If detecting image contains exactly one face
