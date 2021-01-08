@@ -10,10 +10,6 @@ app.config['MODEL_PATH'] = 'models/'
 app.config['TRAIN_PATH'] = 'train/'
 
 
-trainHistory = {
-
-}
-
 @app.route('/')
 def ping():
     return { 'result': 1, 'msg': 'SERVER_IS_RUNNING' }
@@ -40,7 +36,11 @@ def upload():
 def go_train():
     # training goes here, but should trigger an async task
     # as user could not wait and http request cannot hang so long
-    return { 'result': 1 }
+    return { 'result': 1, 'model_name': 'face.model' }
+
+@app.route('/status', methods = ['GET'])
+def status():
+    return { 'result': 1, 'status': 'training' }
 
 @app.route('/model/<filename>', methods = ['GET'])
 def download_model(filename):
