@@ -12,8 +12,7 @@ app.config['TRAIN_PATH'] = 'train/'
 
 @app.route('/')
 def ping():
-    return {'result': 1, 'msg': 'SERVER_IS_RUNNING'}
-
+    return {'result': 1, 'msg': 'SERVER IS RUNNING'}
 
 @app.route('/upload', methods=['POST'])
 def upload():
@@ -38,14 +37,14 @@ def upload():
 def go_train():
     # training goes here, but should trigger an async task
     # as user could not wait and http request cannot hang so long
-    model_name = train('train', 'models')
+    # model_name = train(app.config['MODEL_PATH'], app.config['TRAIN_PATH'])
+    model_name = 'example.model' # mock name
     return {'result': 1, 'model_name': model_name}
-
 
 @app.route('/status', methods=['GET'])
 def status():
-    return {'result': 1, 'status': 'training'}
-
+    return {'result': 1, 'status': 'training', 'model_name': 'example.model'}
+    # return {'result': 1, 'status': 'trained', 'model_name': 'example.model'}
 
 @app.route('/model/<filename>', methods=['GET'])
 def download_model(filename):
@@ -57,7 +56,6 @@ def download_model(filename):
         return send_file(safe_path, as_attachment=True)
     except Exception as e:
         return {'result': 0, 'err': str(e)}, 400
-
 
 if __name__ == '__main__':
     app.run(port=8080)

@@ -10,7 +10,6 @@ import os
 
 TARGET_SIZE = (128, 128)
 
-
 def extract_features(img):
     # resize to TARGET_SIZE
     # to use with face_recognition faster
@@ -29,7 +28,6 @@ def extract_features(img):
 
 def valid(name):
     return name != '.DS_Store' and name != 'Icon\r'
-
 
 def load_dataset(pathname):
     print("\nLoading data...\n")
