@@ -84,7 +84,6 @@ def send_data():
 
     print('Going to start listening for model changes')
     threading.Timer(2.0, listen_for_model_change).start()
-    # timerInstance.start()
 
 def show_frame():
     global isRecording, frame_count

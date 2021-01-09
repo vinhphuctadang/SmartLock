@@ -4,11 +4,28 @@ import base64
 import random
 from trainer import train
 from flask import Flask, request, safe_join, send_file  # , Response
+from concurrent.futures import ThreadPoolExecutor
 
 app = Flask(__name__, static_folder='models')
-app.config['MODEL_PATH'] = 'models/'
-app.config['TRAIN_PATH'] = 'train/'
+app.config['MODEL_PATH'] = 'models'
+app.config['TRAIN_PATH'] = 'train'
 
+# use thread pool for training
+# for scaling purpose, we should use process pool for scale
+executor = ThreadPoolExecutor(max_workers=2)
+
+trainStatus = 'idle'
+trainModelName = None 
+
+def trainWrapper():
+    global trainModelName, trainStatus
+    try:
+        trainStatus = 'training'
+        trainModelName = train(app.config['TRAIN_PATH'], app.config['MODEL_PATH'])
+        trainStatus = 'trained'
+    except Exception as err:
+        trainStatus = 'failed'
+        print(err)
 
 @app.route('/')
 def ping():
@@ -37,14 +54,15 @@ def upload():
 def go_train():
     # training goes here, but should trigger an async task
     # as user could not wait and http request cannot hang so long
-    # model_name = train(app.config['MODEL_PATH'], app.config['TRAIN_PATH'])
-    model_name = 'example.model' # mock name
-    return {'result': 1, 'model_name': model_name}
+    print('Going to handle train request')    
+    executor.submit(trainWrapper, )
+    return { 'result': 1, 'status': 'submittedq'}
 
 @app.route('/status', methods=['GET'])
 def status():
-    return {'result': 1, 'status': 'training', 'model_name': 'example.model'}
-    # return {'result': 1, 'status': 'trained', 'model_name': 'example.model'}
+    if trainStatus != 'trained':
+        return {'result': 1, 'status': trainStatus }
+    return {'result': 1, 'status': trainStatus, 'model_name': trainModelName }
 
 @app.route('/model/<filename>', methods=['GET'])
 def download_model(filename):

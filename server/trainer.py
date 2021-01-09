@@ -30,7 +30,7 @@ def valid(name):
     return name != '.DS_Store' and name != 'Icon\r'
 
 def load_dataset(pathname):
-    print("\nLoading data...\n")
+    print(f"\nLoading data in {pathname}...\n")
     X, y = [], []
     for label in sorted(os.listdir(pathname)):
         if valid(label):
@@ -47,8 +47,9 @@ def load_dataset(pathname):
     return np.array(X), np.array(y)
 
 
-def train(path_to_train='train', path_to_save='models'):
-    model_name = time.strftime('%Y%m%d_%H%M%S') + '.model'
+def train(path_to_train='train', path_to_save='models', model_name=None):
+    if not model_name:
+        model_name = time.strftime('%Y%m%d_%H%M%S') + '.model'
     model_path = path_to_save + '/' + model_name
 
     # Load data from 'path_to_train'
