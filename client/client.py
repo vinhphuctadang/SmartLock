@@ -1,4 +1,5 @@
 import tkinter as tk
+import tkinter.ttk as ttk
 import cv2
 import time, threading
 import os, sys
@@ -12,42 +13,53 @@ import face_recognition as fr
 from scipy.spatial import distance as dist
 from PIL import Image, ImageTk
 
-BASE_URL = 'http://localhost:8080/'
-TRAIN_PATH = 'train/'
-CAMERA_URI = 0
-SAVE_INTERVAL = 20
-IMAGE_LABEL = 'phuc'
-MAX_TIME = 5
-FONT_FACE = cv2.FONT_HERSHEY_SIMPLEX
-FONT_SCALE = 0.75
-THICKNESS = 2
-THRESHOLE = 0.9
+BASE_URL        = 'http://localhost:8080/'
+TRAIN_PATH      = 'train'
+CAMERA_URI      = 0
+SAVE_INTERVAL   = 4
+IMAGE_LABEL     = 'phuc'
+MAX_TIME        = 5
+FONT_FACE       = cv2.FONT_HERSHEY_SIMPLEX
+FONT_SCALE      = 0.75
+THICKNESS       = 2
+THRESHOLE       = 0.9
+DEFAULT_MODEL_NAME = 'default.model'
 
-frame_count = 0
-isRecording = False
-startTime = 0
+frame_count     = 0
+isRecording     = False
+startTime       = 0
 # timer instance for listening to model changes 
-timerInstance = None
-cap          = None 
-camera_view  = None
-recordButtonText = None
-statusText = None
-
+timerInstance   = None
+cap             = None 
+camera_view     = None
+recordButtonText= None
+statusText      = None
+progressBar     = None
+imageLabelTextEdit   = None
+imageLabelText       = None
 # face status
-isClosed = isOpened = False
+isClosed        = isOpened = False
+runningModel    = None 
+mutex           = threading.Lock()
+
+width, height   = 400, 400
 
 def on_record_click():
-    global isRecording, startTime, recordButtonText
+    global isRecording, startTime, recordButtonText, IMAGE_LABEL
     print('Hello world')
     if isRecording:
-        recordButtonText.set('Start record')
+        recordButtonText.set('Add granted person')
         isRecording = False
+        progressBar['value'] = 0
     else:
         startTime = time.time()
+        progressBar['value'] = 0
         print(f'Set start time to {startTime}')
         isRecording = True 
         frame_count = 0
         recordButtonText.set('Recording ... (Press to stop)')
+        IMAGE_LABEL = imageLabelTextEdit.get(1.0, 'end')
+        statusText.set(f'Collect face of {IMAGE_LABEL}')
 
 def invoke_train():
     url = BASE_URL+'train'
@@ -62,28 +74,58 @@ def get_status():
     res = json.loads(requests.get(url).text)
     return res 
 
+def reload_model():
+    global runningModel
+    model_name = DEFAULT_MODEL_NAME
+    if not os.path.isfile(model_name):
+        runningModel = None
+        return
+    # in case loading model takes long time
+    statusText.set(f'(Re)loading {model_name}')
+    loadingModel = load(model_name)
+    mutex.acquire()
+    runningModel = loadingModel
+    mutex.release()
+    statusText.set(f'Model reloaded')
+
 def download_model(model_name):  
     url = BASE_URL+f'model/{model_name}'
     print(f'Going to download model {model_name} at {url}')
     r = requests.get(url, allow_redirects=True)
-    with open(model_name, 'wb') as f:
-        f.write(r.content)
-    print('Download completed')
+    try:
+        with open(model_name, 'wb') as f:
+            f.write(r.content)
+        if os.path.isfile(DEFAULT_MODEL_NAME):
+            os.remove(DEFAULT_MODEL_NAME)
+        # download complete then (re)load model
+        if os.path.isfile(model_name):
+            os.rename(model_name, DEFAULT_MODEL_NAME)
+        reload_model()
+    except Exception as err:
+        if os.path.isfile(model_name):
+            os.remove(model_name)
+        statusText.set(f'Error happened: {str(err)}')
 
 def listen_for_model_change():
     global timerInstance
-    result = get_status()
-    if result['status'] == 'trained':
-        statusText.set(f'Model {result["model_name"]} trained, going to download')
-        download_model(result["model_name"])
-    else:
-        statusText.set(f'Still not receive trained status, waiting with retrieved status: {result["status"]}' )
-        threading.Timer(2.0, listen_for_model_change).start()
+    try:
+        result = get_status()
+        if result['status'] == 'failed':
+            statusText.set('Failed training face in server')
+        elif result['status'] == 'trained':
+            statusText.set(f'Model {result["model_name"]} trained, going to download')
+            download_model(result["model_name"])
+        else:
+            statusText.set(f'Still not receive trained status, waiting with retrieved status: {result["status"]}' )
+            threading.Timer(2.0, listen_for_model_change).start()
+    except Exception as err:
+        statusText.set(f'Error happened: {str(err)}')
 
 def send_data():
     _, __, files = next(os.walk(TRAIN_PATH))
     for filename in files:
-        with open(f'{TRAIN_PATH}{filename}', 'rb') as f:
+        image_path = f'{TRAIN_PATH}/{filename}' 
+        with open(image_path, 'rb') as f:
             image_bin = f.read()
         image_label = IMAGE_LABEL
         image_base64 = base64.b64encode(image_bin)
@@ -97,8 +139,10 @@ def send_data():
             statusString = f'Sent file {TRAIN_PATH}{filename}. Result: {res.text}'
             # print(statusString)
             statusText.set(statusString)
+            os.remove(image_path)
         except Exception as err:
             statusText.set(f'Error happened: {str(err)}')
+            print(f'Error happened: {str(err)}')
 
     print('All files sent')
     try:
@@ -130,9 +174,6 @@ def extract_features(img):
             return [], [], []
     except:
         return [], [], []
-
-def reload_model():
-    pass 
 
 def get_ear(eye):
     # compute the euclidean distances between the two sets of
@@ -170,13 +211,22 @@ def detect_face(frame):
                 isClosed = True
             else:
                 isOpened = True
-
             # print('Ears:', ear_left, ear_right, 'Close, sopen status:', isClosed, isOpened)
             # Human Verification: just eye blink 2 times
             if (isClosed and isOpened):
-                label = 'phuc-test' # predict(clf, features)
+                mutex.acquire()
+                try:
+                    if runningModel:
+                        label = predict(runningModel, features)
+                    else:
+                        # print('Not found valid model')
+                        label = 'Blink your eye'
+                except Exception as err: 
+                    print(err)
+                    label = 'Blink your eye'
+                mutex.release()
             else:
-                label = 'Fa-ke'
+                label = 'Blink your eye'
             # Draw a label with a name below the face
             labelSize = cv2.getTextSize(
                 label, FONT_FACE, FONT_SCALE, THICKNESS)[0]
@@ -190,8 +240,7 @@ def detect_face(frame):
             cv2.putText(frame, label, (left, top - 10),
                         FONT_FACE, fontScale=FONT_SCALE, color=(0, 0, 0), thickness=THICKNESS)
         except Exception as e:
-            print('Error happened:', e)
-            pass
+            statusText.set(f'Error happened: {str(e)}')
     else:
         isClosed = isOpened = False
     return frame
@@ -205,11 +254,10 @@ def show_frame():
         frame_count += 1
         if frame_count % SAVE_INTERVAL == 0:
             # frame_copy = frame.copy()
-            filename = f'{TRAIN_PATH}{int(time.time()*1000)}.jpg'
+            filename = f'{TRAIN_PATH}/{int(time.time()*1000)}.jpg'
             print(f'Going to save image as {filename}')
             cv2.imwrite(filename, frame)
             frame_count = 0
-            frame = cv2.rectangle(frame, (0, 0), (frame.shape[1], frame.shape[0]), (0, 255, 0), 5)
         if time.time() - startTime > MAX_TIME:
             print('Auto end recording')
             # call this function to forcing recording to be ended
@@ -217,8 +265,10 @@ def show_frame():
             # start new thread
             # to send data to server
             threading.Thread(target=send_data, args=()).start()
-    
-    frame = detect_face(frame)
+        else:
+            progressBar['value'] = min(100, ((time.time() - startTime) / MAX_TIME) * 100)
+    else:
+        frame = detect_face(frame)
     # display frame
     cv2image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
     img = Image.fromarray(cv2image)
@@ -231,11 +281,12 @@ def predict(clf, features):
     label = clf.predict(features)[0]
     if label == 'unknown':
         return 'Unknown~'
-    proba = clf.predict_proba(features)
-    acc_max = np.max(proba[0])
-    if acc_max < threshold:
-        return 'Unknown~'
+    # proba = clf.predict_proba(features)
+    acc_max = 1 # np.max(proba[0])
+    # if acc_max < THRESHOLE:
+    #     return 'Unknown thred~'
     return '%s %.2f' % (label, acc_max*100)
+
 def main():
     #
     # prepare environment first
@@ -247,8 +298,6 @@ def main():
     root = tk.Tk()
     root.title('SmartLock')
     # root.geometry("600x400")
-
-    width, height = 400, 400
 
     global cap
     cap = cv2.VideoCapture(CAMERA_URI)
@@ -262,20 +311,32 @@ def main():
     # 
     root.bind('q', lambda e: sys.exit(0))
 
-    global camera_view, recordButtonText, statusText
+    global camera_view, recordButtonText, statusText, progressBar, imageLabelTextEdit
+
+    camera_view = tk.Label(root, width=width, height=height)
+    camera_view.grid(column=0, row=0, rowspan=4)
+
+    # imageLabelText = tk.StringVar()
+    # imageLabelText.set('')
+    imageLabelTextEdit = tk.Text(root, height=1, width=50, borderwidth=2, relief="groove") #, textvariable=imageLabelText)
+    imageLabelTextEdit.insert(1.0, 'Person name goes here')
+    imageLabelTextEdit.grid(column=1, row=0)
+
+    recordButtonText = tk.StringVar()
+    recordButtonText.set('Add granted person')
+    recordButton = tk.Button(root, textvariable=recordButtonText, command=on_record_click, width=50, height=3) # , padx = 10, pady = 10)
+    recordButton.grid(column=1, row=1)
+
+    progressBar = ttk.Progressbar(root, orient=tk.HORIZONTAL, length=300, mode='determinate', maximum=100, value=0)
+    progressBar.grid(column=1, row=2, ipady=20)
+    progressBar['value'] = 0
 
     statusText = tk.StringVar()
     statusText.set('Status text goes here')
     statusLabel = tk.Label(root, textvariable=statusText, anchor='w', width=50, height=1)
-    statusLabel.grid(column=1, row=1)
+    statusLabel.grid(column=1, row=3)
 
-    recordButtonText = tk.StringVar()
-    recordButtonText.set('Start record')
-    recordButton = tk.Button(root, textvariable=recordButtonText, command=on_record_click, width=50, height=3) # , padx = 10, pady = 10)
-    recordButton.grid(column=1, row=0)
-
-    camera_view = tk.Label(root, width=width, height=height)
-    camera_view.grid(column=0, row=0, rowspan=2)
+    reload_model()
     show_frame()
     root.mainloop()
 
