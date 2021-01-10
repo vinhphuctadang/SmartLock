@@ -56,7 +56,7 @@ def go_train():
     # as user could not wait and http request cannot hang so long
     print('Going to handle train request')    
     executor.submit(trainWrapper, )
-    return { 'result': 1, 'status': 'submittedq'}
+    return { 'result': 1, 'status': 'submitted'}
 
 @app.route('/status', methods=['GET'])
 def status():
