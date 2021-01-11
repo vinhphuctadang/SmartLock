@@ -16,20 +16,22 @@ from PIL import Image, ImageTk
 BASE_URL        = 'http://localhost:8080/'
 TRAIN_PATH      = 'train'
 CAMERA_URI      = 0
-SAVE_INTERVAL   = 4
+# SAVE_INTERVAL   = 4 # Deprecated
 IMAGE_LABEL     = 'phuc'
-MAX_TIME        = 5
+# MAX_TIME        = 5 # Deprecated
+MAX_SAMPLE      = 30
+
 FONT_FACE       = cv2.FONT_HERSHEY_SIMPLEX
 FONT_SCALE      = 0.75
 THICKNESS       = 2
 THRESHOLE       = 0.9
 DEFAULT_MODEL_NAME = 'default.model'
 
-frame_count     = 0
-isRecording     = False
-startTime       = 0
+sample_count     = 0
+is_recording     = False
+start_time       = 0
 # timer instance for listening to model changes 
-timerInstance   = None
+timer_instance   = None
 cap             = None 
 camera_view     = None
 recordButtonText= None
@@ -45,18 +47,18 @@ mutex           = threading.Lock()
 width, height   = 400, 400
 
 def on_record_click():
-    global isRecording, startTime, recordButtonText, IMAGE_LABEL
+    global is_recording, sample_count, recordButtonText, IMAGE_LABEL
     print('Hello world')
-    if isRecording:
+    if is_recording:
         recordButtonText.set('Add granted person')
-        isRecording = False
+        is_recording = False
         progressBar['value'] = 0
     else:
-        startTime = time.time()
+        start_time = time.time()
         progressBar['value'] = 0
-        print(f'Set start time to {startTime}')
-        isRecording = True 
-        frame_count = 0
+        print(f'Set start time to {start_time}')
+        is_recording = True 
+        sample_count = 0
         recordButtonText.set('Recording ... (Press to stop)')
         IMAGE_LABEL = imageLabelTextEdit.get(1.0, 'end')
         statusText.set(f'Collect face of {IMAGE_LABEL}')
@@ -107,7 +109,7 @@ def download_model(model_name):
         statusText.set(f'Error happened: {str(err)}')
 
 def listen_for_model_change():
-    global timerInstance
+    global timer_instance
     try:
         result = get_status()
         if result['status'] == 'failed':
@@ -191,7 +193,8 @@ def get_ear(eye):
     # return the eye aspect ratio
     return ear
 
-def detect_face(frame):
+def detect_face(frame, need_labeling=False):
+    face_box = ()
     features, face_landmarks, box = extract_features(frame)
     global isClosed, isOpened 
     if len(features) == 1 and len(face_landmarks) == 1:
@@ -213,20 +216,22 @@ def detect_face(frame):
                 isOpened = True
             # print('Ears:', ear_left, ear_right, 'Close, sopen status:', isClosed, isOpened)
             # Human Verification: just eye blink 2 times
-            if (isClosed and isOpened):
-                mutex.acquire()
-                try:
-                    if runningModel:
-                        label = predict(runningModel, features)
-                    else:
-                        # print('Not found valid model')
+            if need_labeling:
+                if (isClosed and isOpened):
+                    mutex.acquire()
+                    try:
+                        if runningModel:
+                            label = predict(runningModel, features)
+                        else:
+                            label = 'Blink your eye'
+                    except Exception as err: 
+                        print(err)
                         label = 'Blink your eye'
-                except Exception as err: 
-                    print(err)
+                    mutex.release()
+                else:
                     label = 'Blink your eye'
-                mutex.release()
             else:
-                label = 'Blink your eye'
+                label = 'Detected face'
             # Draw a label with a name below the face
             labelSize = cv2.getTextSize(
                 label, FONT_FACE, FONT_SCALE, THICKNESS)[0]
@@ -239,36 +244,38 @@ def detect_face(frame):
             )
             cv2.putText(frame, label, (left, top - 10),
                         FONT_FACE, fontScale=FONT_SCALE, color=(0, 0, 0), thickness=THICKNESS)
+            face_box = box
         except Exception as e:
             statusText.set(f'Error happened: {str(e)}')
     else:
         isClosed = isOpened = False
-    return frame
+    return frame, face_box
 
 def show_frame():
-    global isRecording, frame_count
+    global is_recording, sample_count
     _, frame = cap.read()
     frame = cv2.flip(frame, 1)
-
-    if isRecording:
-        frame_count += 1
-        if frame_count % SAVE_INTERVAL == 0:
-            # frame_copy = frame.copy()
+    
+    if is_recording:
+        sub_frame = frame.copy()
+        sub_frame, face_box = detect_face(sub_frame, need_labeling=False)
+        if len(face_box):
+            sample_count += 1
             filename = f'{TRAIN_PATH}/{int(time.time()*1000)}.jpg'
             print(f'Going to save image as {filename}')
             cv2.imwrite(filename, frame)
-            frame_count = 0
-        if time.time() - startTime > MAX_TIME:
-            print('Auto end recording')
-            # call this function to forcing recording to be ended
-            on_record_click()
-            # start new thread
-            # to send data to server
-            threading.Thread(target=send_data, args=()).start()
-        else:
-            progressBar['value'] = min(100, ((time.time() - startTime) / MAX_TIME) * 100)
+            # replace frame for displaying
+            frame = sub_frame
+            progressBar['value'] = min(100, (sample_count / MAX_SAMPLE) * 100)
+            if sample_count == MAX_SAMPLE:
+                print('Auto end recording')
+                # call this function to forcing recording to be ended
+                on_record_click()
+                # start new thread
+                # to send data to server
+                threading.Thread(target=send_data, args=()).start()
     else:
-        frame = detect_face(frame)
+        frame, face_box = detect_face(frame, need_labeling=True)
     # display frame
     cv2image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
     img = Image.fromarray(cv2image)
@@ -279,10 +286,8 @@ def show_frame():
 
 def predict(clf, features):
     label = clf.predict(features)[0]
-    if label == 'unknown':
-        return 'Unknown~'
-    # proba = clf.predict_proba(features)
-    acc_max = 1 # np.max(proba[0])
+    proba = clf.predict_proba(features)
+    acc_max = np.max(proba[0])
     # if acc_max < THRESHOLE:
     #     return 'Unknown thred~'
     return '%s %.2f' % (label, acc_max*100)
