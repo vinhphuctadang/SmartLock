@@ -16,10 +16,10 @@ from PIL import Image, ImageTk
 BASE_URL        = 'http://localhost:8080/'
 TRAIN_PATH      = 'train'
 CAMERA_URI      = 0
-# SAVE_INTERVAL   = 4 # Deprecated
+SAVE_INTERVAL   = 5 # Deprecated
 IMAGE_LABEL     = 'phuc'
 # MAX_TIME        = 5 # Deprecated
-MAX_SAMPLE      = 30
+MAX_SAMPLE      = 50
 
 FONT_FACE       = cv2.FONT_HERSHEY_SIMPLEX
 FONT_SCALE      = 0.75
@@ -27,9 +27,11 @@ THICKNESS       = 2
 THRESHOLE       = 0.9
 DEFAULT_MODEL_NAME = 'default.model'
 
+frame_count     = 0 
 sample_count     = 0
 is_recording     = False
 start_time       = 0
+
 # timer instance for listening to model changes 
 timer_instance   = None
 cap             = None 
@@ -56,9 +58,14 @@ def on_record_click():
     else:
         start_time = time.time()
         progressBar['value'] = 0
+        #
+        # prepare environment first
+        #
+        if not os.path.isdir(TRAIN_PATH):
+            os.mkdir(TRAIN_PATH)
         print(f'Set start time to {start_time}')
         is_recording = True 
-        sample_count = 0
+        sample_count = frame_count = 0
         recordButtonText.set('Recording ... (Press to stop)')
         IMAGE_LABEL = imageLabelTextEdit.get(1.0, 'end')
         statusText.set(f'Collect face of {IMAGE_LABEL}')
@@ -159,7 +166,7 @@ def send_data():
 def extract_features(img):
     # resize to TARGET_SIZE
     # to use with face_recognition faster
-    ratio = 6
+    ratio = 3
     ORG_SIZE = img.shape
     img = cv2.resize(img, (ORG_SIZE[1]//ratio, ORG_SIZE[0]//ratio))
     try:
@@ -252,7 +259,7 @@ def detect_face(frame, need_labeling=False):
     return frame, face_box
 
 def show_frame():
-    global is_recording, sample_count
+    global is_recording, sample_count, frame_count
     _, frame = cap.read()
     frame = cv2.flip(frame, 1)
     
@@ -260,20 +267,22 @@ def show_frame():
         sub_frame = frame.copy()
         sub_frame, face_box = detect_face(sub_frame, need_labeling=False)
         if len(face_box):
-            sample_count += 1
-            filename = f'{TRAIN_PATH}/{int(time.time()*1000)}.jpg'
-            print(f'Going to save image as {filename}')
-            cv2.imwrite(filename, frame)
-            # replace frame for displaying
-            frame = sub_frame
-            progressBar['value'] = min(100, (sample_count / MAX_SAMPLE) * 100)
-            if sample_count == MAX_SAMPLE:
-                print('Auto end recording')
-                # call this function to forcing recording to be ended
-                on_record_click()
-                # start new thread
-                # to send data to server
-                threading.Thread(target=send_data, args=()).start()
+            frame_count += 1
+            if frame_count % SAVE_INTERVAL == 0:
+                sample_count += 1
+                filename = f'{TRAIN_PATH}/{int(time.time()*1000)}.jpg'
+                print(f'Going to save image as {filename}')
+                cv2.imwrite(filename, frame)
+                # replace frame for displaying
+                frame = sub_frame
+                progressBar['value'] = min(100, (sample_count / MAX_SAMPLE) * 100)
+                if sample_count == MAX_SAMPLE:
+                    print('Auto end recording')
+                    # call this function to forcing recording to be ended
+                    on_record_click()
+                    # start new thread
+                    # to send data to server
+                    threading.Thread(target=send_data, args=()).start()
     else:
         frame, face_box = detect_face(frame, need_labeling=True)
     # display frame
@@ -293,11 +302,6 @@ def predict(clf, features):
     return '%s %.2f' % (label, acc_max*100)
 
 def main():
-    #
-    # prepare environment first
-    #
-    if not os.path.isdir(TRAIN_PATH):
-        os.mkdir(TRAIN_PATH)
 
     # set up UI    
     root = tk.Tk()
