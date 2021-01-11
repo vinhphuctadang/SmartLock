@@ -26,6 +26,8 @@ FONT_SCALE      = 0.75
 THICKNESS       = 2
 THRESHOLE       = 0.9
 DEFAULT_MODEL_NAME = 'default.model'
+DEFAULT_CONFIG_FILE  = 'default.json'
+DEFAULT_CONFIG  = {}
 
 frame_count     = 0 
 sample_count     = 0
@@ -33,20 +35,36 @@ is_recording     = False
 start_time       = 0
 
 # timer instance for listening to model changes 
-timer_instance   = None
+timer_instance  = None
 cap             = None 
 camera_view     = None
 recordButtonText= None
+recordButton    = None
 statusText      = None
 progressBar     = None
 imageLabelTextEdit   = None
 imageLabelText       = None
+
 # face status
 isClosed        = isOpened = False
-runningModel    = None 
+runningModel    = None
 mutex           = threading.Lock()
-
 width, height   = 400, 400
+
+def parse_config():
+    global DEFAULT_CONFIG
+    if not os.path.isfile(DEFAULT_CONFIG_FILE):
+        DEFAULT_CONFIG = { 
+            'granted_people' : [],
+            'all_people': []
+        }
+    else: 
+        with open(DEFAULT_CONFIG_FILE, 'r', encoding='uft8') as f:
+            DEFAULT_CONFIG = json.loads(f.readline())
+
+def update_config():
+    with open(DEFAULT_CONFIG_FILE, 'w', encoding='utf8') as f:
+        f.write(json.dumps(DEFAULT_CONFIG))
 
 def on_record_click():
     global is_recording, sample_count, recordButtonText, IMAGE_LABEL
@@ -106,6 +124,11 @@ def download_model(model_name):
             f.write(r.content)
         if os.path.isfile(DEFAULT_MODEL_NAME):
             os.remove(DEFAULT_MODEL_NAME)
+
+        DEFAULT_CONFIG['granted_people'].append(IMAGE_LABEL)
+        DEFAULT_CONFIG['all_people'].append(IMAGE_LABEL)
+        update_config()
+
         # download complete then (re)load model
         if os.path.isfile(model_name):
             os.rename(model_name, DEFAULT_MODEL_NAME)
@@ -229,14 +252,18 @@ def detect_face(frame, need_labeling=False):
                     try:
                         if runningModel:
                             label = predict(runningModel, features)
+
+                            if lable in DEFAULT_CONFIG['granted_people']:
+                                recordButton['state'] = 'active'
                         else:
-                            label = 'Blink your eye'
+                            label = 'unknown'
                     except Exception as err: 
                         print(err)
                         label = 'Blink your eye'
                     mutex.release()
                 else:
                     label = 'Blink your eye'
+
             else:
                 label = 'Detected face'
             # Draw a label with a name below the face
@@ -303,10 +330,12 @@ def predict(clf, features):
 
 def main():
 
+    parse_config()
+    reload_model()
+
     # set up UI    
     root = tk.Tk()
     root.title('SmartLock')
-    # root.geometry("600x400")
 
     global cap
     cap = cv2.VideoCapture(CAMERA_URI)
@@ -320,13 +349,11 @@ def main():
     # 
     root.bind('q', lambda e: sys.exit(0))
 
-    global camera_view, recordButtonText, statusText, progressBar, imageLabelTextEdit
+    global camera_view, recordButtonText, statusText, progressBar, imageLabelTextEdit, recordButton
 
     camera_view = tk.Label(root, width=width, height=height)
     camera_view.grid(column=0, row=0, rowspan=4)
 
-    # imageLabelText = tk.StringVar()
-    # imageLabelText.set('')
     imageLabelTextEdit = tk.Text(root, height=1, width=50, borderwidth=2, relief="groove") #, textvariable=imageLabelText)
     imageLabelTextEdit.insert(1.0, 'Person name goes here')
     imageLabelTextEdit.grid(column=1, row=0)
@@ -335,6 +362,7 @@ def main():
     recordButtonText.set('Add granted person')
     recordButton = tk.Button(root, textvariable=recordButtonText, command=on_record_click, width=50, height=3) # , padx = 10, pady = 10)
     recordButton.grid(column=1, row=1)
+    recordButton['state'] = 'disable' # if len(DEFAULT_CONFIG['granted_people']) > 0 else 'active'
 
     progressBar = ttk.Progressbar(root, orient=tk.HORIZONTAL, length=300, mode='determinate', maximum=100, value=0)
     progressBar.grid(column=1, row=2, ipady=20)
@@ -345,7 +373,6 @@ def main():
     statusLabel = tk.Label(root, textvariable=statusText, anchor='w', width=50, height=1)
     statusLabel.grid(column=1, row=3)
 
-    reload_model()
     show_frame()
     root.mainloop()
 
