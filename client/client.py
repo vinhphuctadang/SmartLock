@@ -24,9 +24,9 @@ MAX_SAMPLE      = 50
 FONT_FACE       = cv2.FONT_HERSHEY_SIMPLEX
 FONT_SCALE      = 0.75
 THICKNESS       = 2
-THRESHOLE       = 0.9
-DEFAULT_MODEL_NAME = 'default.model'
-DEFAULT_CONFIG_FILE  = 'default.json'
+THRESHOLE       = 0.7
+DEFAULT_MODEL_NAME  = 'default.model'
+DEFAULT_CONFIG_FILE = 'default.json'
 DEFAULT_CONFIG  = {}
 
 frame_count     = 0 
@@ -58,9 +58,10 @@ def parse_config():
             'granted_people' : [],
             'all_people': []
         }
-    else: 
-        with open(DEFAULT_CONFIG_FILE, 'r', encoding='uft8') as f:
-            DEFAULT_CONFIG = json.loads(f.readline())
+        return 
+
+    with open(DEFAULT_CONFIG_FILE, 'r', encoding='utf8') as f:
+        DEFAULT_CONFIG = json.loads(f.readline())
 
 def update_config():
     with open(DEFAULT_CONFIG_FILE, 'w', encoding='utf8') as f:
@@ -85,7 +86,7 @@ def on_record_click():
         is_recording = True 
         sample_count = frame_count = 0
         recordButtonText.set('Recording ... (Press to stop)')
-        IMAGE_LABEL = imageLabelTextEdit.get(1.0, 'end')
+        IMAGE_LABEL = imageLabelTextEdit.get(1.0, 'end').replace('\n', '')
         statusText.set(f'Collect face of {IMAGE_LABEL}')
 
 def invoke_train():
@@ -171,11 +172,11 @@ def send_data():
             statusString = f'Sent file {TRAIN_PATH}{filename}. Result: {res.text}'
             # print(statusString)
             statusText.set(statusString)
-            os.remove(image_path)
         except Exception as err:
             statusText.set(f'Error happened: {str(err)}')
             print(f'Error happened: {str(err)}')
-
+        if os.path.isfile(image_path):
+            os.remove(image_path)
     print('All files sent')
     try:
         invoke_train()
@@ -244,7 +245,7 @@ def detect_face(frame, need_labeling=False):
                 isClosed = True
             else:
                 isOpened = True
-            # print('Ears:', ear_left, ear_right, 'Close, sopen status:', isClosed, isOpened)
+
             # Human Verification: just eye blink 2 times
             if need_labeling:
                 if (isClosed and isOpened):
@@ -252,8 +253,7 @@ def detect_face(frame, need_labeling=False):
                     try:
                         if runningModel:
                             label = predict(runningModel, features)
-
-                            if lable in DEFAULT_CONFIG['granted_people']:
+                            if label in DEFAULT_CONFIG['granted_people']:
                                 recordButton['state'] = 'active'
                         else:
                             label = 'unknown'
@@ -324,15 +324,12 @@ def predict(clf, features):
     label = clf.predict(features)[0]
     proba = clf.predict_proba(features)
     acc_max = np.max(proba[0])
-    # if acc_max < THRESHOLE:
-    #     return 'Unknown thred~'
+    if acc_max < THRESHOLE:
+        return 'Unknown thred~'
     return '%s %.2f' % (label, acc_max*100)
 
 def main():
-
     parse_config()
-    reload_model()
-
     # set up UI    
     root = tk.Tk()
     root.title('SmartLock')
@@ -358,22 +355,29 @@ def main():
     imageLabelTextEdit.insert(1.0, 'Person name goes here')
     imageLabelTextEdit.grid(column=1, row=0)
 
+    style = ttk.Style()
+    style.theme_use('clam')
+    style.configure("red.Horizontal.TProgressbar", foreground='red', background='red')
+    progressBar = ttk.Progressbar(root, orient=tk.HORIZONTAL, style="red.Horizontal.TProgressbar", length=300, mode='determinate', maximum=100, value=0)
+    progressBar.grid(column=1, row=1, ipady=5)
+    progressBar['value'] = 0
+
     recordButtonText = tk.StringVar()
     recordButtonText.set('Add granted person')
     recordButton = tk.Button(root, textvariable=recordButtonText, command=on_record_click, width=50, height=3) # , padx = 10, pady = 10)
-    recordButton.grid(column=1, row=1)
-    recordButton['state'] = 'disable' # if len(DEFAULT_CONFIG['granted_people']) > 0 else 'active'
+    recordButton.grid(column=1, row=2)
 
-    progressBar = ttk.Progressbar(root, orient=tk.HORIZONTAL, length=300, mode='determinate', maximum=100, value=0)
-    progressBar.grid(column=1, row=2, ipady=20)
-    progressBar['value'] = 0
+    if len(DEFAULT_CONFIG['granted_people']) > 0:
+        recordButton['state'] = 'disable'
+
 
     statusText = tk.StringVar()
-    statusText.set('Status text goes here')
-    statusLabel = tk.Label(root, textvariable=statusText, anchor='w', width=50, height=1)
+    statusText.set('Status: Idle')
+    statusLabel = tk.Label(root, textvariable=statusText, anchor='s', width=50, height=1)
     statusLabel.grid(column=1, row=3)
 
     show_frame()
+    reload_model()
     root.mainloop()
 
 # entry point
