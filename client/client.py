@@ -11,6 +11,7 @@ from joblib import load
 from skimage import feature
 import face_recognition as fr
 from scipy.spatial import distance as dist
+import tkinter.simpledialog
 from PIL import Image, ImageTk
 
 BASE_URL        = 'http://localhost:8080/'
@@ -58,6 +59,7 @@ def parse_config():
             'granted_people' : [],
             'all_people': []
         }
+        update_config() 
         return 
 
     with open(DEFAULT_CONFIG_FILE, 'r', encoding='utf8') as f:
@@ -73,20 +75,21 @@ def on_record_click():
     if is_recording:
         recordButtonText.set('Add granted person')
         is_recording = False
+        progressBar.grid_forget()
         progressBar['value'] = 0
     else:
-        start_time = time.time()
+        IMAGE_LABEL = tk.simpledialog.askstring('Person name', 'Please input person name (without space):')
+        if not IMAGE_LABEL:
+            return
+        # IMAGE_LABEL = imageLabelTextEdit.get(1.0, 'end').replace('\n', '')
+        # start_time = time.time()
+        progressBar.grid(column=0, row=1, ipady=5, columnspan= 2, padx=20, pady=20)        
         progressBar['value'] = 0
-        #
-        # prepare environment first
-        #
         if not os.path.isdir(TRAIN_PATH):
             os.mkdir(TRAIN_PATH)
-        print(f'Set start time to {start_time}')
-        is_recording = True 
         sample_count = frame_count = 0
+        is_recording = True
         recordButtonText.set('Recording ... (Press to stop)')
-        IMAGE_LABEL = imageLabelTextEdit.get(1.0, 'end').replace('\n', '')
         statusText.set(f'Collect face of {IMAGE_LABEL}')
 
 def invoke_train():
@@ -349,32 +352,34 @@ def main():
     global camera_view, recordButtonText, statusText, progressBar, imageLabelTextEdit, recordButton
 
     camera_view = tk.Label(root, width=width, height=height)
-    camera_view.grid(column=0, row=0, rowspan=4)
+    camera_view.grid(column=0, row=0, columnspan=2)
 
-    imageLabelTextEdit = tk.Text(root, height=1, width=50, borderwidth=2, relief="groove") #, textvariable=imageLabelText)
-    imageLabelTextEdit.insert(1.0, 'Person name goes here')
-    imageLabelTextEdit.grid(column=1, row=0)
+    # imageLabelTextEdit = tk.Text(root, height=1, width=50, borderwidth=2, relief="groove") #, textvariable=imageLabelText)
+    # imageLabelTextEdit.insert(1.0, 'Person name goes here')
+    # imageLabelTextEdit.grid(column=1, row=0)
 
     style = ttk.Style()
     style.theme_use('clam')
     style.configure("red.Horizontal.TProgressbar", foreground='red', background='red')
     progressBar = ttk.Progressbar(root, orient=tk.HORIZONTAL, style="red.Horizontal.TProgressbar", length=300, mode='determinate', maximum=100, value=0)
-    progressBar.grid(column=1, row=1, ipady=5)
+    progressBar.grid(column=0, row=1, ipady=5, columnspan= 2, padx=20, pady=20)
     progressBar['value'] = 0
+    progressBar.grid_forget()
 
     recordButtonText = tk.StringVar()
     recordButtonText.set('Add granted person')
-    recordButton = tk.Button(root, textvariable=recordButtonText, command=on_record_click, width=50, height=3) # , padx = 10, pady = 10)
-    recordButton.grid(column=1, row=2)
-
+    recordButton = tk.Button(root, textvariable=recordButtonText, command=on_record_click, width=25, height=3) # , padx = 10, pady = 10)
+    recordButton.grid(column=0, row=2, padx=20, pady=10)
+    
     if len(DEFAULT_CONFIG['granted_people']) > 0:
         recordButton['state'] = 'disable'
-
+    lockButton = tk.Button(root, text='Lock the door', width=25, height=3)
+    lockButton.grid(column=1, row=2, padx=20)
 
     statusText = tk.StringVar()
     statusText.set('Status: Idle')
     statusLabel = tk.Label(root, textvariable=statusText, anchor='s', width=50, height=1)
-    statusLabel.grid(column=1, row=3)
+    statusLabel.grid(column=0, row=3, columnspan=2, pady=20)
 
     show_frame()
     reload_model()
