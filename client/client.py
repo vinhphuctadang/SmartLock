@@ -25,7 +25,7 @@ MAX_SAMPLE      = 50
 FONT_FACE       = cv2.FONT_HERSHEY_SIMPLEX
 FONT_SCALE      = 0.75
 THICKNESS       = 2
-THRESHOLE       = 0.7
+THRESHOLE       = 0.85
 DEFAULT_MODEL_NAME  = 'default.model'
 DEFAULT_CONFIG_FILE = 'default.json'
 DEFAULT_CONFIG  = {}
@@ -248,16 +248,18 @@ def detect_face(frame, need_labeling=False):
                 isClosed = True
             else:
                 isOpened = True
-
+            acc = None
             # Human Verification: just eye blink 2 times
             if need_labeling:
                 if (isClosed and isOpened):
                     mutex.acquire()
                     try:
                         if runningModel:
-                            label = predict(runningModel, features)
+                            label, acc = predict(runningModel, features)
                             if label in DEFAULT_CONFIG['granted_people']:
-                                recordButton['state'] = 'active'
+                                if recordButton['state'] == 'disabled': 
+                                    recordButton['state'] = 'active'
+                                    statusText.set(f'Face verified: {label}')
                         else:
                             label = 'unknown'
                     except Exception as err: 
@@ -266,9 +268,11 @@ def detect_face(frame, need_labeling=False):
                     mutex.release()
                 else:
                     label = 'Blink your eye'
-
             else:
                 label = 'Detected face'
+
+            if acc:
+                label = '%s %.2f' % (label, acc)
             # Draw a label with a name below the face
             labelSize = cv2.getTextSize(
                 label, FONT_FACE, FONT_SCALE, THICKNESS)[0]
@@ -328,8 +332,8 @@ def predict(clf, features):
     proba = clf.predict_proba(features)
     acc_max = np.max(proba[0])
     if acc_max < THRESHOLE:
-        return 'Unknown thred~'
-    return '%s %.2f' % (label, acc_max*100)
+        return 'Unknown~', acc_max
+    return label, acc_max
 
 def main():
     parse_config()
@@ -371,8 +375,6 @@ def main():
     recordButton = tk.Button(root, textvariable=recordButtonText, command=on_record_click, width=25, height=3) # , padx = 10, pady = 10)
     recordButton.grid(column=0, row=2, padx=20, pady=10)
     
-    if len(DEFAULT_CONFIG['granted_people']) > 0:
-        recordButton['state'] = 'disable'
     lockButton = tk.Button(root, text='Lock the door', width=25, height=3)
     lockButton.grid(column=1, row=2, padx=20)
 
@@ -383,6 +385,15 @@ def main():
 
     show_frame()
     reload_model()
+
+    # post init
+
+    if len(DEFAULT_CONFIG['granted_people']) > 0:
+        recordButton['state'] = 'disable'
+        statusText.set('Verify who you are before adding granted person/unlock the door')
+    else:
+        statusText.set('Add first granted person to start using the lock')
+
     root.mainloop()
 
 # entry point
