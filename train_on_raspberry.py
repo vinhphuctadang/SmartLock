@@ -6,6 +6,7 @@ from sklearn.neighbors import KNeighborsClassifier
 from sklearn.ensemble import AdaBoostClassifier
 from sklearn.ensemble import BaggingClassifier
 from sklearn.naive_bayes import GaussianNB
+from sklearn.linear_model import SGDClassifier
 import matplotlib.pyplot as plt
 import face_recognition as fr
 from sklearn import tree
@@ -44,6 +45,7 @@ def valid(name):
 def load_dataset(pathname):
     print("Loading data...\n")
     X, y = [], []
+    idx = 0
     for label in sorted(os.listdir(pathname)):
         if valid(label):
             print(label + ' in processing...')
@@ -55,7 +57,8 @@ def load_dataset(pathname):
                     # print(features)
                     if len(features) == 1:
                         X.append(features[0])
-                        y.append(label)
+                        y.append(idx)
+            idx += 1
 
     return np.array(X), np.array(y)
 
@@ -95,16 +98,17 @@ def score_dataset(dataset_name, model, X, y, cv=None):
 
 print("\nTraining model...\n")
 models = {
-    'kNN': KNeighborsClassifier(8),
-    'GaussianNB': GaussianNB(),
-    'DecisionTree': tree.DecisionTreeClassifier(criterion="gini"),
-    'Bagging': BaggingClassifier(base_estimator=tree.DecisionTreeClassifier(), n_estimators=100),
-    'AdaBoost': AdaBoostClassifier(base_estimator=tree.DecisionTreeClassifier(max_depth=2), n_estimators=50),
-    'RandomForest': RandomForestClassifier(n_estimators=50),
-    'SVM_Linear': svm.SVC(kernel='linear', C=1000, probability=True),
-    'SVM_Poly': svm.SVC(kernel='poly', C=100000, probability=True),  # 100000
-    'SVM_RBF': svm.SVC(kernel='rbf', C=100000, gamma=0.01, probability=True),
-    'SVM_Sigmoid': svm.SVC(kernel='sigmoid', C=100000, gamma=0.0001, probability=True)
+    'SGD': SGDClassifier()
+    # 'kNN': KNeighborsClassifier(8),
+    # 'GaussianNB': GaussianNB(),
+    # 'DecisionTree': tree.DecisionTreeClassifier(criterion="gini"),
+    # 'Bagging': BaggingClassifier(base_estimator=tree.DecisionTreeClassifier(), n_estimators=100),
+    # 'AdaBoost': AdaBoostClassifier(base_estimator=tree.DecisionTreeClassifier(max_depth=2), n_estimators=50),
+    # 'RandomForest': RandomForestClassifier(n_estimators=50),
+    # 'SVM_Linear': svm.SVC(kernel='linear', C=1000, probability=True),
+    # 'SVM_Poly': svm.SVC(kernel='poly', C=100000, probability=True),  # 100000
+    # 'SVM_RBF': svm.SVC(kernel='rbf', C=100000, gamma=0.01, probability=True),
+    # 'SVM_Sigmoid': svm.SVC(kernel='sigmoid', C=100000, gamma=0.0001, probability=True)
 }
 
 # Logging for Visual Comparison
@@ -150,7 +154,7 @@ plt.savefig(result + '/figure.png')
 
 X_train, X_test, y_train, y_test = train_test_split(
     X, y, test_size=3./10, random_state=2020)
-clf = svm.SVC(kernel='rbf', C=100000, gamma=0.01, probability=True)
+clf = SGDClassifier()
 clf.fit(X_train, y_train)
 y_pred = clf.predict(X_test)
 acc = accuracy_score(y_test, y_pred)
