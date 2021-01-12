@@ -1,4 +1,5 @@
 import os
+import sys
 import cv2
 import logger
 import numpy as np
@@ -33,16 +34,7 @@ def extract_features(img):
         if len(face_bounding_boxes) == 1:
             feature_vector = fr.face_encodings(img, face_bounding_boxes)
             face_landmarks = fr.face_landmarks(img, face_bounding_boxes)
-            # top, right, bottom, left = face_bounding_boxes[0]
-            # roi = img[top:bottom, left:right]
-            # img_ycrcb = cv2.cvtColor(roi, cv2.COLOR_BGR2YCR_CB)
-            # img_luv = cv2.cvtColor(roi, cv2.COLOR_BGR2LUV)
 
-            # ycrcb_hist = calc_hist(img_ycrcb)
-            # luv_hist = calc_hist(img_luv)
-            # feature_vector = np.append(ycrcb_hist.ravel(), luv_hist.ravel())
-            # feature_vector = feature_vector.reshape(1, len(feature_vector))
-            # feature_vector = LBP(img, 24, 8)
             box = np.array(face_bounding_boxes[0])
             box = box * ratio
             # box: int required
@@ -65,38 +57,6 @@ def predict(clf, features):
         return 'Unknown~'
 
     return '%s %.2f' % (label, acc_max*100)
-
-
-def calc_hist(img):
-    '''
-        Caculate Histogram of Image
-    '''
-    histogram = [0] * 3
-    for j in range(3):
-        histr = cv2.calcHist([img], [j], None, [256], [0, 256])
-        histr *= 255.0 / histr.max()
-        histogram[j] = histr
-    return np.array(histogram)
-
-
-def LBP(image, numPoints, radius, eps=1e-7):
-    '''
-        Caculate Local Binary Pattern Variance
-    '''
-    image = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
-    # compute the Local Binary Pattern representation
-    # of the image, and then use the LBP representation
-    # to build the histogram of patterns
-    lbp = feature.local_binary_pattern(image, numPoints,
-                                       radius, method="var")
-    (hist, _) = np.histogram(lbp.ravel(),
-                             bins=np.arange(0, numPoints + 3),
-                             range=(0, numPoints + 2))
-    # normalize the histogram
-    hist = hist.astype("float")
-    hist /= (hist.sum() + eps)
-    # return the histogram of Local Binary Patterns
-    return np.array([hist])
 
 
 def get_ear(eye):
@@ -134,14 +94,14 @@ def main():
 
         pivotY = (frame.shape[0] - FACE_SIZE[0]) // 2
         pivotX = (frame.shape[1] - FACE_SIZE[0]) // 2
-
-        frame = cv2.flip(frame[pivotY:pivotY+FACE_SIZE[1],
-                               pivotX:pivotX+FACE_SIZE[0]], 1)
-
-        # Configure camera on Raspberry Pi
-        # frame = cv2.flip(frame[pivotY:pivotY+FACE_SIZE[1],
-        #                        pivotX:pivotX+FACE_SIZE[0]], 0)
-        # frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
+        if sys.platform == 'darwin':
+            frame = cv2.flip(frame[pivotY:pivotY+FACE_SIZE[1],
+                                   pivotX:pivotX+FACE_SIZE[0]], 1)
+        else:
+            # Configure camera on Raspberry Pi
+            frame = cv2.flip(frame[pivotY:pivotY+FACE_SIZE[1],
+                                   pivotX:pivotX+FACE_SIZE[0]], 0)
+            frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
         # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
         # Only process every other frame of video to save time
