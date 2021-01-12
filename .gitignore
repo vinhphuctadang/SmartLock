@@ -2,7 +2,7 @@
 /faces
 /__pycache__
 /models/*/*.h5
-.DS_Store
+# .DS_Store
 *__pycache__*
 *Icon*
-*.DS_Store*
+# *.DS_Store*
