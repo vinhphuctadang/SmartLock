@@ -11,10 +11,10 @@ from scipy.spatial import distance as dist
 VIDEO_URI = 0
 
 # This config is based on your camera qual
-FACE_SIZE = (400, 400)
+FACE_SIZE = (320, 280)
 
 # Expected sample size
-TARGET_SIZE = (128, 128)
+TARGET_SIZE = (96, 96)
 ratio = FACE_SIZE[0] / TARGET_SIZE[0]
 
 # utils
@@ -100,8 +100,8 @@ def main():
         else:
             # Configure camera on Raspberry Pi
             frame = cv2.flip(frame[pivotY:pivotY+FACE_SIZE[1],
-                                   pivotX:pivotX+FACE_SIZE[0]], 0)
-            frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
+                                   pivotX:pivotX+FACE_SIZE[0]], 1)
+            # frame = cv2.rotate(frame, cv2.ROTATE_90_COUNTERCLOCKWISE)
         # frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
 
         # Only process every other frame of video to save time
