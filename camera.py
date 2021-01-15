@@ -4,17 +4,23 @@ import cv2
 import logger
 import numpy as np
 from joblib import load
-from skimage import feature
 import face_recognition as fr
 from scipy.spatial import distance as dist
 # CONFIG: replace video URI here
 VIDEO_URI = 0
 
 # This config is based on your camera qual
-FACE_SIZE = (320, 280)
+if sys.platform == 'darwin':
+    FACE_SIZE = (400, 400)
+    # Expected sample size
+    TARGET_SIZE = (128, 128)
+else:
+    # Configure camera on Raspberry Pi
+    FACE_SIZE = (320, 280)
+    # Expected sample size
+    TARGET_SIZE = (96, 96)
 
-# Expected sample size
-TARGET_SIZE = (96, 96)
+
 ratio = FACE_SIZE[0] / TARGET_SIZE[0]
 
 # utils
