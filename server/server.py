@@ -15,21 +15,25 @@ app.config['TRAIN_PATH'] = 'train'
 executor = ThreadPoolExecutor(max_workers=2)
 
 trainStatus = 'idle'
-trainModelName = None 
+trainModelName = None
+
 
 def trainWrapper():
     global trainModelName, trainStatus
     try:
         trainStatus = 'training'
-        trainModelName = train(app.config['TRAIN_PATH'], app.config['MODEL_PATH'])
+        trainModelName = train(
+            app.config['TRAIN_PATH'], app.config['MODEL_PATH'])
         trainStatus = 'trained'
     except Exception as err:
         trainStatus = 'failed'
         print(err)
 
+
 @app.route('/')
 def ping():
     return {'result': 1, 'msg': 'SERVER IS RUNNING'}
+
 
 @app.route('/upload', methods=['POST'])
 def upload():
@@ -54,15 +58,17 @@ def upload():
 def go_train():
     # training goes here, but should trigger an async task
     # as user could not wait and http request cannot hang so long
-    print('Going to handle train request')    
+    print('Going to handle train request')
     executor.submit(trainWrapper, )
-    return { 'result': 1, 'status': 'submitted'}
+    return {'result': 1, 'status': 'submitted'}
+
 
 @app.route('/status', methods=['GET'])
 def status():
     if trainStatus != 'trained':
-        return {'result': 1, 'status': trainStatus }
-    return {'result': 1, 'status': trainStatus, 'model_name': trainModelName }
+        return {'result': 1, 'status': trainStatus}
+    return {'result': 1, 'status': trainStatus, 'model_name': trainModelName}
+
 
 @app.route('/model/<filename>', methods=['GET'])
 def download_model(filename):
@@ -75,5 +81,6 @@ def download_model(filename):
     except Exception as e:
         return {'result': 0, 'err': str(e)}, 400
 
+
 if __name__ == '__main__':
-    app.run(port=8080)
+    app.run("0.0.0.0", port=8080)
