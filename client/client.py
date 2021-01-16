@@ -59,7 +59,9 @@ width, height   = 400, 400
 def on_lock_click():
     global isClosed, isOpened 
     elock.setLock(False)
-    isClosed = isOpened = False
+    recordButton['state']   = 'disabled'
+    lockButton['state']     = 'disabled'
+    isClosed = isOpened     = False
 
 def parse_config():
     global DEFAULT_CONFIG
