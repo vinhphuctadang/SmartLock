@@ -38,8 +38,8 @@ def extract_features(img):
 
         # If detecting image contains exactly one face
         if len(face_bounding_boxes) == 1:
-            feature_vector = fr.face_encodings(img, face_bounding_boxes)
-            face_landmarks = fr.face_landmarks(img, face_bounding_boxes)
+            feature_vector = [0]  # fr.face_encodings(img, face_bounding_boxes)
+            face_landmarks = [0]  # fr.face_landmarks(img, face_bounding_boxes)
 
             box = np.array(face_bounding_boxes[0])
             box = box * ratio
@@ -121,23 +121,24 @@ def main():
                     cv2.rectangle(frame, (left, top),
                                   (right, bottom), (0, 255, 0), 2)
 
-                    left_eye = face_landmarks['left_eye']
-                    right_eye = face_landmarks['right_eye']
-                    ear_left = get_ear(left_eye)
-                    ear_right = get_ear(right_eye)
+                    # left_eye = face_landmarks['left_eye']
+                    # right_eye = face_landmarks['right_eye']
+                    # ear_left = get_ear(left_eye)
+                    # ear_right = get_ear(right_eye)
 
-                    closed = ear_left < 0.2 and ear_right < 0.2
-                    if closed:
-                        isClosed = True
-                    else:
-                        isOpened = True
+                    # closed = ear_left < 0.2 and ear_right < 0.2
+                    # if closed:
+                    #     isClosed = True
+                    # else:
+                    #     isOpened = True
 
-                    # Human Verification: just eye blink 2 times
-                    if (isClosed and isOpened):
-                        label = predict(clf, features)
-                    else:
-                        label = 'Fa-ke'
+                    # # Human Verification: just eye blink 2 times
+                    # if (isClosed and isOpened):
+                    #     label = 'hello'  # predict(clf, features)
+                    # else:
+                    #     label = 'Fa-ke'
 
+                    label = 'Fa-ke'
                     # Draw a label with a name below the face
                     labelSize = cv2.getTextSize(
                         label, fontFace, fontScale, thickness)[0]
