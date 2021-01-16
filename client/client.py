@@ -14,6 +14,24 @@ from scipy.spatial import distance as dist
 import tkinter.simpledialog
 from PIL import Image, ImageTk
 import elock
+from queue import Queue
+from concurrent.futures import ThreadPoolExecutor
+
+job_count_lock = threading.Lock()
+_job_count = 0
+job_result = Queue()
+executor = ThreadPoolExecutor(max_workers=2)
+
+def get_job_count():
+    job_count_lock.acquire()
+    job_cnt = _job_count
+    job_count_lock.release()
+    return job_cnt
+def add_job(inc):
+    job_count_lock.acquire()
+    global _job_count
+    _job_count += inc
+    job_count_lock.release()
 
 BASE_URL        = 'http://localhost:8080/'
 TRAIN_PATH      = 'train'
@@ -201,7 +219,7 @@ def send_data():
     statusText.set('Going to start listening for model changes')
     threading.Timer(2.0, listen_for_model_change).start()
 
-def extract_features(img):
+def extract_features(img, need_feature=True, need_landmark=True):
     # resize to TARGET_SIZE
     # to use with face_recognition faster
     ratio = 3
@@ -211,8 +229,11 @@ def extract_features(img):
         face_bounding_boxes = fr.face_locations(img)
         # If detecting image contains exactly one face
         if len(face_bounding_boxes) == 1:
-            feature_vector = fr.face_encodings(img, face_bounding_boxes)
-            face_landmarks = fr.face_landmarks(img, face_bounding_boxes)
+            feature_vector = face_landmarks = [0]
+            if need_feature:
+                feature_vector = fr.face_encodings(img, face_bounding_boxes)
+            if need_landmark:
+                face_landmarks = fr.face_landmarks(img, face_bounding_boxes)
             box = np.array(face_bounding_boxes[0])
             box = box * ratio
             # box: int required
@@ -238,9 +259,18 @@ def get_ear(eye):
     # return the eye aspect ratio
     return ear
 
-def detect_face(frame, need_labeling=False):
+def detect_face(frame, need_labeling=True):
     face_box = ()
-    features, face_landmarks, box = extract_features(frame)
+    label = None
+    features, face_landmarks, box = extract_features(frame, need_feature=need_labeling, need_landmark=need_labeling)
+    # if not need labeling, then just return box for short
+    if not need_labeling:
+        if len(box): 
+            top, right, bottom, left = box
+            cv2.rectangle(frame, (left, top),
+                    (right, bottom), (0, 255, 0), 2)
+        return frame, box, None
+
     global isClosed, isOpened 
     if len(features) == 1 and len(face_landmarks) == 1:
         top, right, bottom, left = box
@@ -303,7 +333,12 @@ def detect_face(frame, need_labeling=False):
             statusText.set('Error happened: ' + str(e))
     else:
         isClosed = isOpened = False
-    return frame, face_box
+    return frame, face_box, label
+
+def asyncWrapper(frame):
+    frame, face_box, label = detect_face(frame, need_labeling=True)
+    job_result.put((face_box, label))
+    add_job(-1)
 
 def show_frame():
     global is_recording, sample_count, frame_count
@@ -312,7 +347,7 @@ def show_frame():
     
     if is_recording:
         sub_frame = frame.copy()
-        sub_frame, face_box = detect_face(sub_frame, need_labeling=False)
+        sub_frame, face_box, _ = detect_face(sub_frame, need_labeling=False)
         if len(face_box):
             frame_count += 1
             if frame_count % SAVE_INTERVAL == 0:
@@ -331,7 +366,16 @@ def show_frame():
                     # to send data to server
                     threading.Thread(target=send_data, args=()).start()
     else:
-        frame, face_box = detect_face(frame, need_labeling=True)
+        frame, face_box, _ = detect_face(frame, need_labeling=False)        
+        if get_job_count() == 0:
+            add_job(+1)
+            executor.submit(asyncWrapper, frame.copy())
+        if not job_result.empty():
+            # print('Waiting for reuslt ...')
+            result = job_result.get(block=False)
+            if type(result) != int and result[1]:
+                cv2.putText(frame, result[1], (frame.shape[1]//2, frame.shape[0]//2),
+                    FONT_FACE, fontScale=FONT_SCALE, color=(0, 0, 0), thickness=THICKNESS)
     # display frame
     cv2image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
     img = Image.fromarray(cv2image)

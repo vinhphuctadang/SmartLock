@@ -22,8 +22,8 @@ def setLock(lockState):
 
 # test GPIO
 print('Checking lock health')
-setLock(False)
-time.sleep(1)
-setLock(True)
-time.sleep(1)
-setLock(False)
+# setLock(False)
+# time.sleep(1)
+# setLock(True)
+# time.sleep(1)
+# setLock(False)
