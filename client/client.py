@@ -56,8 +56,10 @@ runningModel    = None
 mutex           = threading.Lock()
 width, height   = 400, 400
 
-def lockButtonClick():
-    unlockStatus = False
+def on_lock_click():
+    global isClosed, isOpened 
+    elock.setLock(False)
+    isClosed = isOpened = False
 
 def parse_config():
     global DEFAULT_CONFIG
@@ -136,9 +138,10 @@ def download_model(model_name):
         if os.path.isfile(DEFAULT_MODEL_NAME):
             os.remove(DEFAULT_MODEL_NAME)
 
-        DEFAULT_CONFIG['granted_people'].append(IMAGE_LABEL)
-        DEFAULT_CONFIG['all_people'].append(IMAGE_LABEL)
-        update_config()
+        if IMAGE_LABEL not in DEFAULT_CONFIG['all_people']:
+            DEFAULT_CONFIG['granted_people'].append(IMAGE_LABEL)
+            DEFAULT_CONFIG['all_people'].append(IMAGE_LABEL)
+            update_config()
 
         # download complete then (re)load model
         if os.path.isfile(model_name):
@@ -192,8 +195,7 @@ def send_data():
         invoke_train()
     except Exception as err:
         statusText.set('Error happened: ' + str(err))
-        return 
-    
+        return
     statusText.set('Going to start listening for model changes')
     threading.Timer(2.0, listen_for_model_change).start()
 
@@ -266,6 +268,8 @@ def detect_face(frame, need_labeling=False):
                             if label in DEFAULT_CONFIG['granted_people']:
                                 if recordButton['state'] == 'disabled': 
                                     recordButton['state'] = 'active'
+                                    lockButton['state'] = 'active'
+                                    elock.setLock(True)
                                     statusText.set('Face verified: %s' % label)
                         else:
                             label = 'unknown'
@@ -365,10 +369,6 @@ def main():
     camera_view = tk.Label(root, width=width, height=height)
     camera_view.grid(column=0, row=0, columnspan=2)
 
-    # imageLabelTextEdit = tk.Text(root, height=1, width=50, borderwidth=2, relief="groove") #, textvariable=imageLabelText)
-    # imageLabelTextEdit.insert(1.0, 'Person name goes here')
-    # imageLabelTextEdit.grid(column=1, row=0)
-
     style = ttk.Style()
     style.theme_use('clam')
     style.configure("red.Horizontal.TProgressbar", foreground='red', background='red')
@@ -382,7 +382,7 @@ def main():
     recordButton = tk.Button(root, textvariable=recordButtonText, command=on_record_click, width=25, height=3) # , padx = 10, pady = 10)
     recordButton.grid(column=0, row=2, padx=20, pady=10)
     
-    lockButton = tk.Button(root, text='Lock the door', width=25, height=3)
+    lockButton = tk.Button(root, text='Lock the door', width=25, height=3, command=on_lock_click)
     lockButton.grid(column=1, row=2, padx=20)
 
     statusText = tk.StringVar()
@@ -394,9 +394,10 @@ def main():
     reload_model()
 
     # post init
-
     if len(DEFAULT_CONFIG['granted_people']) > 0:
         recordButton['state'] = 'disable'
+        lockButton['state'] = 'disable'
+        elock.setLock(True)
         statusText.set('Verify who you are before adding granted person/unlock the door')
     else:
         statusText.set('Add first granted person to start using the lock')
