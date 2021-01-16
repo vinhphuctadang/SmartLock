@@ -382,7 +382,7 @@ def show_frame():
     imgtk = ImageTk.PhotoImage(image=img)
     camera_view.imgtk = imgtk
     camera_view.configure(image=imgtk)
-    camera_view.after(33, show_frame)
+    camera_view.after(20, show_frame)
 
 def predict(clf, features):
     label = clf.predict(features)[0]
