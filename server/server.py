@@ -59,8 +59,11 @@ def go_train():
     # training goes here, but should trigger an async task
     # as user could not wait and http request cannot hang so long
     print('Going to handle train request')
-    executor.submit(trainWrapper, )
-    return {'result': 1, 'status': 'submitted'}
+    try:
+        executor.submit(trainWrapper, )
+        return {'result': 1}
+    except Exception as e:
+        return {'result': 0, 'err': str(e)}, 400
 
 
 @app.route('/status', methods=['GET'])

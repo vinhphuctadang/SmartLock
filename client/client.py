@@ -13,6 +13,7 @@ import face_recognition as fr
 from scipy.spatial import distance as dist
 import tkinter.simpledialog
 from PIL import Image, ImageTk
+import elock
 
 BASE_URL        = 'http://localhost:8080/'
 TRAIN_PATH      = 'train'
@@ -31,9 +32,10 @@ DEFAULT_CONFIG_FILE = 'default.json'
 DEFAULT_CONFIG  = {}
 
 frame_count     = 0 
-sample_count     = 0
-is_recording     = False
-start_time       = 0
+sample_count    = 0
+is_recording    = False
+start_time      = 0
+unlockStatus    = 0
 
 # timer instance for listening to model changes 
 timer_instance  = None
@@ -41,6 +43,8 @@ cap             = None
 camera_view     = None
 recordButtonText= None
 recordButton    = None
+lockButton      = None
+
 statusText      = None
 progressBar     = None
 imageLabelTextEdit   = None
@@ -51,6 +55,11 @@ isClosed        = isOpened = False
 runningModel    = None
 mutex           = threading.Lock()
 width, height   = 400, 400
+
+def on_lock_click():
+    global isClosed, isOpened 
+    elock.setLock(False)
+    isClosed = isOpened = False
 
 def parse_config():
     global DEFAULT_CONFIG
@@ -90,7 +99,7 @@ def on_record_click():
         sample_count = frame_count = 0
         is_recording = True
         recordButtonText.set('Recording ... (Press to stop)')
-        statusText.set(f'Collect face of {IMAGE_LABEL}')
+        statusText.set('Collect face of ' + IMAGE_LABEL)
 
 def invoke_train():
     url = BASE_URL+'train'
@@ -112,16 +121,16 @@ def reload_model():
         runningModel = None
         return
     # in case loading model takes long time
-    statusText.set(f'(Re)loading {model_name}')
+    statusText.set('(Re)loading ' + model_name)
     loadingModel = load(model_name)
     mutex.acquire()
     runningModel = loadingModel
     mutex.release()
-    statusText.set(f'Model reloaded')
+    statusText.set('Model reloaded')
 
 def download_model(model_name):  
-    url = BASE_URL+f'model/{model_name}'
-    print(f'Going to download model {model_name} at {url}')
+    url = BASE_URL+'model/'+model_name
+    print('Going to download model %s at %s' % (model_name, url))
     r = requests.get(url, allow_redirects=True)
     try:
         with open(model_name, 'wb') as f:
@@ -129,9 +138,10 @@ def download_model(model_name):
         if os.path.isfile(DEFAULT_MODEL_NAME):
             os.remove(DEFAULT_MODEL_NAME)
 
-        DEFAULT_CONFIG['granted_people'].append(IMAGE_LABEL)
-        DEFAULT_CONFIG['all_people'].append(IMAGE_LABEL)
-        update_config()
+        if IMAGE_LABEL not in DEFAULT_CONFIG['all_people']:
+            DEFAULT_CONFIG['granted_people'].append(IMAGE_LABEL)
+            DEFAULT_CONFIG['all_people'].append(IMAGE_LABEL)
+            update_config()
 
         # download complete then (re)load model
         if os.path.isfile(model_name):
@@ -140,7 +150,7 @@ def download_model(model_name):
     except Exception as err:
         if os.path.isfile(model_name):
             os.remove(model_name)
-        statusText.set(f'Error happened: {str(err)}')
+        statusText.set('Error happened: ' + str(err))
 
 def listen_for_model_change():
     global timer_instance
@@ -149,18 +159,18 @@ def listen_for_model_change():
         if result['status'] == 'failed':
             statusText.set('Failed training face in server')
         elif result['status'] == 'trained':
-            statusText.set(f'Model {result["model_name"]} trained, going to download')
+            statusText.set('Model %s trained, going to download' % result["model_name"])
             download_model(result["model_name"])
         else:
-            statusText.set(f'Still not receive trained status, waiting with retrieved status: {result["status"]}' )
+            statusText.set('Still not receive trained status, waiting with retrieved status: %s' % result["status"])
             threading.Timer(2.0, listen_for_model_change).start()
     except Exception as err:
-        statusText.set(f'Error happened: {str(err)}')
+        statusText.set('Error happened: ' + str(err))
 
 def send_data():
     _, __, files = next(os.walk(TRAIN_PATH))
     for filename in files:
-        image_path = f'{TRAIN_PATH}/{filename}' 
+        image_path = TRAIN_PATH+'/'+filename
         with open(image_path, 'rb') as f:
             image_bin = f.read()
         image_label = IMAGE_LABEL
@@ -172,21 +182,20 @@ def send_data():
         url = BASE_URL+'upload'
         try:
             res = requests.post(url, data=myobj)
-            statusString = f'Sent file {TRAIN_PATH}{filename}. Result: {res.text}'
+            statusString = 'Sent file %s%s. Result: %s' % (TRAIN_PATH, filename, res.text)
             # print(statusString)
             statusText.set(statusString)
         except Exception as err:
-            statusText.set(f'Error happened: {str(err)}')
-            print(f'Error happened: {str(err)}')
+            statusText.set('Error happened: ' + str(err))
+            print('Error happened: '+ str(err))
         if os.path.isfile(image_path):
             os.remove(image_path)
     print('All files sent')
     try:
         invoke_train()
     except Exception as err:
-        statusText.set(f'Error happened: {str(err)}')
-        return 
-    
+        statusText.set('Error happened: ' + str(err))
+        return
     statusText.set('Going to start listening for model changes')
     threading.Timer(2.0, listen_for_model_change).start()
 
@@ -259,7 +268,9 @@ def detect_face(frame, need_labeling=False):
                             if label in DEFAULT_CONFIG['granted_people']:
                                 if recordButton['state'] == 'disabled': 
                                     recordButton['state'] = 'active'
-                                    statusText.set(f'Face verified: {label}')
+                                    lockButton['state'] = 'active'
+                                    elock.setLock(True)
+                                    statusText.set('Face verified: %s' % label)
                         else:
                             label = 'unknown'
                     except Exception as err: 
@@ -287,7 +298,7 @@ def detect_face(frame, need_labeling=False):
                         FONT_FACE, fontScale=FONT_SCALE, color=(0, 0, 0), thickness=THICKNESS)
             face_box = box
         except Exception as e:
-            statusText.set(f'Error happened: {str(e)}')
+            statusText.set('Error happened: ' + str(e))
     else:
         isClosed = isOpened = False
     return frame, face_box
@@ -304,8 +315,8 @@ def show_frame():
             frame_count += 1
             if frame_count % SAVE_INTERVAL == 0:
                 sample_count += 1
-                filename = f'{TRAIN_PATH}/{int(time.time()*1000)}.jpg'
-                print(f'Going to save image as {filename}')
+                filename = '%s/%d.jpg' % (TRAIN_PATH, int(time.time()*1000))
+                print('Going to save image as ' + filename)
                 cv2.imwrite(filename, frame)
                 # replace frame for displaying
                 frame = sub_frame
@@ -353,14 +364,10 @@ def main():
     # 
     root.bind('q', lambda e: sys.exit(0))
 
-    global camera_view, recordButtonText, statusText, progressBar, imageLabelTextEdit, recordButton
+    global camera_view, recordButtonText, statusText, progressBar, imageLabelTextEdit, recordButton, lockButton
 
     camera_view = tk.Label(root, width=width, height=height)
     camera_view.grid(column=0, row=0, columnspan=2)
-
-    # imageLabelTextEdit = tk.Text(root, height=1, width=50, borderwidth=2, relief="groove") #, textvariable=imageLabelText)
-    # imageLabelTextEdit.insert(1.0, 'Person name goes here')
-    # imageLabelTextEdit.grid(column=1, row=0)
 
     style = ttk.Style()
     style.theme_use('clam')
@@ -375,7 +382,7 @@ def main():
     recordButton = tk.Button(root, textvariable=recordButtonText, command=on_record_click, width=25, height=3) # , padx = 10, pady = 10)
     recordButton.grid(column=0, row=2, padx=20, pady=10)
     
-    lockButton = tk.Button(root, text='Lock the door', width=25, height=3)
+    lockButton = tk.Button(root, text='Lock the door', width=25, height=3, command=on_lock_click)
     lockButton.grid(column=1, row=2, padx=20)
 
     statusText = tk.StringVar()
@@ -387,9 +394,10 @@ def main():
     reload_model()
 
     # post init
-
     if len(DEFAULT_CONFIG['granted_people']) > 0:
         recordButton['state'] = 'disable'
+        lockButton['state'] = 'disable'
+        elock.setLock(True)
         statusText.set('Verify who you are before adding granted person/unlock the door')
     else:
         statusText.set('Add first granted person to start using the lock')
