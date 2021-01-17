@@ -342,23 +342,23 @@ def detect_face(frame, need_labeling=True):
         isClosed = isOpened = False
     return frame, face_box, label
 
-executor_result = context.Queue()
-executor_input  = context.Queue()
-
-def detect_face_task():
+def detect_face_task(executor_result, executor_input):
     while True:
         # block until a frame exists
         frame = executor_input.get()
+        print('Detected: receive a farme')
         # predict
         frame, face_box, label = detect_face(frame, need_labeling=True)
-        print('Detected:', label)
+        
         if not label:
             label = 'unknown'
         executor_result.put(label)
-executor = context.Process(target=detect_face_task, args=())
+
+executor_result = context.Queue()
+executor_input  = context.Queue()
 
 def show_frame():
-    global is_recording, sample_count, frame_count, marked_time, executor, is_on_detecting
+    global is_recording, sample_count, frame_count, marked_time, executor, is_on_detecting, executor_input, executor_result
     _, frame = cap.read()
     frame = cv2.flip(frame, 1)
     
@@ -391,8 +391,9 @@ def show_frame():
         frame, face_box, _ = detect_face(frame, need_labeling=False)     
         if not executor_result.empty():
             try:
+                top, right, bottom, left = face_box
                 result = executor_result.get()
-                cv2.putText(frame, result[1], (frame.shape[1]//2, frame.shape[0]//2),
+                cv2.putText(frame, result, (left, top-10),
                     FONT_FACE, fontScale=FONT_SCALE, color=(0, 255, 0), thickness=THICKNESS)
                 is_on_detecting = False
             except Exception as e:
@@ -481,4 +482,7 @@ def main():
     root.mainloop()
 
 # entry point
-main()
+if __name__ == '__main__':
+    executor = context.Process(target=detect_face_task, args=(executor_result, executor_input,))
+    executor.start()
+    main()
