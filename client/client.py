@@ -14,24 +14,28 @@ from scipy.spatial import distance as dist
 import tkinter.simpledialog
 from PIL import Image, ImageTk
 import elock
-from queue import Queue
-from concurrent.futures import ThreadPoolExecutor
+# from concurrent.futures import ThreadPoolExecutor
+import multiprocessing
 
-job_count_lock = threading.Lock()
-_job_count = 0
-job_result = Queue()
-executor = ThreadPoolExecutor(max_workers=2)
+context = multiprocessing
+if 'forkserver' in multiprocessing.get_all_start_methods():
+    context = multiprocessing.get_context('forkserver')
 
-def get_job_count():
-    job_count_lock.acquire()
-    job_cnt = _job_count
-    job_count_lock.release()
-    return job_cnt
-def add_job(inc):
-    job_count_lock.acquire()
-    global _job_count
-    _job_count += inc
-    job_count_lock.release()
+# job_count_lock = threading.Lock()
+# _job_count = 0
+# job_result = Queue()
+# executor = ThreadPoolExecutor(max_workers=2)
+
+# def get_job_count():
+#     job_count_lock.acquire()
+#     job_cnt = _job_count
+#     job_count_lock.release()
+#     return job_cnt
+# def add_job(inc):
+#     job_count_lock.acquire()
+#     global _job_count
+#     _job_count += inc
+#     job_count_lock.release()
 
 BASE_URL        = 'http://localhost:8080/'
 TRAIN_PATH      = 'train'
@@ -68,11 +72,14 @@ progressBar     = None
 imageLabelTextEdit   = None
 imageLabelText       = None
 
+marked_time = None
 # face status
 isClosed        = isOpened = False
 runningModel    = None
 mutex           = threading.Lock()
 width, height   = 400, 400
+
+is_on_detecting = False 
 
 def on_lock_click():
     global isClosed, isOpened 
@@ -335,13 +342,23 @@ def detect_face(frame, need_labeling=True):
         isClosed = isOpened = False
     return frame, face_box, label
 
-def asyncWrapper(frame):
-    frame, face_box, label = detect_face(frame, need_labeling=True)
-    job_result.put((face_box, label))
-    add_job(-1)
+executor_result = context.Queue()
+executor_input  = context.Queue()
+
+def detect_face_task():
+    while True:
+        # block until a frame exists
+        frame = executor_input.get()
+        # predict
+        frame, face_box, label = detect_face(frame, need_labeling=True)
+        print('Detected:', label)
+        if not label:
+            label = 'unknown'
+        executor_result.put(label)
+executor = context.Process(target=detect_face_task, args=())
 
 def show_frame():
-    global is_recording, sample_count, frame_count
+    global is_recording, sample_count, frame_count, marked_time, executor, is_on_detecting
     _, frame = cap.read()
     frame = cv2.flip(frame, 1)
     
@@ -366,23 +383,37 @@ def show_frame():
                     # to send data to server
                     threading.Thread(target=send_data, args=()).start()
     else:
-        frame, face_box, _ = detect_face(frame, need_labeling=False)        
-        if get_job_count() == 0:
-            add_job(+1)
-            executor.submit(asyncWrapper, frame.copy())
-        if not job_result.empty():
-            # print('Waiting for reuslt ...')
-            result = job_result.get(block=False)
-            if type(result) != int and result[1]:
+        if not is_on_detecting:
+            is_on_detecting = True
+            # mock status
+            executor_input.put(frame.copy())
+
+        frame, face_box, _ = detect_face(frame, need_labeling=False)     
+        if not executor_result.empty():
+            try:
+                result = executor_result.get()
                 cv2.putText(frame, result[1], (frame.shape[1]//2, frame.shape[0]//2),
-                    FONT_FACE, fontScale=FONT_SCALE, color=(0, 0, 0), thickness=THICKNESS)
+                    FONT_FACE, fontScale=FONT_SCALE, color=(0, 255, 0), thickness=THICKNESS)
+                is_on_detecting = False
+            except Exception as e:
+                print('Error happened: ' + str(e))
+                pass
+
+    if not marked_time:
+        marked_time = time.time()
+    else:
+        tmp = time.time()
+        fps = 1 / (tmp-marked_time)
+        cv2.putText(frame, '%.2f' % fps, (frame.shape[1]//2, frame.shape[0]//2),
+                    FONT_FACE, fontScale=FONT_SCALE, color=(0, 255, 0), thickness=THICKNESS)
+        marked_time = tmp
     # display frame
     cv2image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGBA)
     img = Image.fromarray(cv2image)
     imgtk = ImageTk.PhotoImage(image=img)
     camera_view.imgtk = imgtk
     camera_view.configure(image=imgtk)
-    camera_view.after(20, show_frame)
+    camera_view.after(1, show_frame)
 
 def predict(clf, features):
     label = clf.predict(features)[0]
@@ -447,7 +478,6 @@ def main():
         statusText.set('Verify who you are before adding granted person/unlock the door')
     else:
         statusText.set('Add first granted person to start using the lock')
-
     root.mainloop()
 
 # entry point
