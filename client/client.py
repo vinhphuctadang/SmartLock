@@ -11,12 +11,13 @@ import numpy as np
 import tkinter as tk
 from joblib import load
 import tkinter.ttk as ttk
+import tkinter.simpledialog
 import face_recognition as fr
-from scipy.spatial import distance as dist
 from PIL import Image, ImageTk
+from scipy.spatial import distance as dist
 
 
-BASE_URL = 'http://localhost:8080/'
+BASE_URL = 'http://172.20.10.2:8080/'
 TRAIN_PATH = 'train'
 CAMERA_URI = 0
 SAVE_INTERVAL = 5  # Deprecated
@@ -241,7 +242,8 @@ def extract_features(img):
 
 
 def get_ear(eye):
-    # compute the euclidean distances between the two sets of
+    # compute Eye Aspect Rate (EAR)
+    # Or compute the euclidean distances between the two sets of
     # vertical eye landmarks (x, y)-coordinates
     A = dist.euclidean(eye[1], eye[5])
     B = dist.euclidean(eye[2], eye[4])
@@ -359,7 +361,7 @@ def show_frame():
     imgtk = ImageTk.PhotoImage(image=img)
     camera_view.imgtk = imgtk
     camera_view.configure(image=imgtk)
-    camera_view.after(0, show_frame)
+    camera_view.after(33, show_frame)
 
 
 def predict(clf, features):
