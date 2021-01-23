@@ -13,7 +13,10 @@ Follow ``experiments.ipynb`` to execute tests and see SVM-RBF actual configs
 Setup:
 
 1. Install requirements:
-`` pip3 install -r requirements.txt ``
+
+``` 
+pip3 install -r requirements.txt 
+```
 
 2. Run server:
 
@@ -30,7 +33,7 @@ GPIO=true python3 client.py
 
 **Caution:** 
 - ``GPIO=true`` will require package RPi.GPIO to be installed
-- We offers config in ``client.py``, please have a look at the script for proper config to make script works on your environment
+- We offer config in ``client.py``, please have a look at the script for proper config to make script works on your environment
 
 Some screenshots:
 ![Capture user Phuc](capture_phuc.png)
