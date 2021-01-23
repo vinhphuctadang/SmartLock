@@ -16,19 +16,25 @@ import face_recognition as fr
 from PIL import Image, ImageTk
 from scipy.spatial import distance as dist
 
-
+# Replace custom HOST here
 BASE_URL = 'http://172.20.10.2:8080/'
 TRAIN_PATH = 'train'
 CAMERA_URI = 0
 SAVE_INTERVAL = 5  # Deprecated
 IMAGE_LABEL = 'phuc'
-# MAX_TIME        = 5 # Deprecated
+
+# Maximum sample to collect before performing training
 MAX_SAMPLE = 50
 
+# Font config for text rendering
 FONT_FACE = cv2.FONT_HERSHEY_SIMPLEX
 FONT_SCALE = 0.75
 THICKNESS = 2
+
+# Threshold for "known" and "unknown" class
 THRESHOLE = 0.85
+
+# Model and config file
 DEFAULT_MODEL_NAME = 'default.model'
 DEFAULT_CONFIG_FILE = 'default.json'
 DEFAULT_CONFIG = {}
@@ -59,14 +65,10 @@ mutex = threading.Lock()
 width, height = 400, 400
 
 
-def on_lock_click():
-    global isClosed, isOpened
-    elock.setLock(False)
-    recordButton['state'] = 'disabled'
-    lockButton['state'] = 'disabled'
-    isClosed = isOpened = False
 
-
+#
+# Config management
+#
 def parse_config():
     global DEFAULT_CONFIG
     if not os.path.isfile(DEFAULT_CONFIG_FILE):
@@ -85,7 +87,19 @@ def update_config():
     with open(DEFAULT_CONFIG_FILE, 'w', encoding='utf8') as f:
         f.write(json.dumps(DEFAULT_CONFIG))
 
+#
+# Handle on clicking on "Lock the door" 
+#
+def on_lock_click():
+    global isClosed, isOpened
+    elock.setLock(False)
+    recordButton['state'] = 'disabled'
+    lockButton['state'] = 'disabled'
+    isClosed = isOpened = False
 
+#
+# Handle on clicking on "Add granted person"
+#
 def on_record_click():
     global is_recording, sample_count, recordButtonText, IMAGE_LABEL
     print('Hello world')
@@ -99,8 +113,7 @@ def on_record_click():
             'Person name', 'Please input person name (without space):')
         if not IMAGE_LABEL:
             return
-        # IMAGE_LABEL = imageLabelTextEdit.get(1.0, 'end').replace('\n', '')
-        # start_time = time.time()
+        # update views to show current status
         progressBar.grid(column=0, row=1, ipady=5,
                          columnspan=2, padx=20, pady=20)
         progressBar['value'] = 0
@@ -110,7 +123,6 @@ def on_record_click():
         is_recording = True
         recordButtonText.set('Recording ... (Press to stop)')
         statusText.set('Collect face of ' + IMAGE_LABEL)
-
 
 def invoke_train():
     url = BASE_URL+'train'
@@ -436,7 +448,6 @@ def main():
         statusText.set('Add first granted person to start using the lock')
 
     root.mainloop()
-
 
 # entry point
 main()
