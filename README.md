@@ -8,6 +8,8 @@ Steps to reproduce:
 Follow ``experiments.ipynb`` to execute tests and see SVM-RBF actual configs 
 
 + We built client-server model for applying model into practice:
+
+
 Setup:
 
 1. Install requirements:
@@ -27,7 +29,7 @@ GPIO=true python3 client.py
 ```
 
 **Caution:** 
-- ``GPIO=true`` will requires package RPi.GPIO to be installed
+- ``GPIO=true`` will require package RPi.GPIO to be installed
 - We offers config in ``client.py``, please have a look at the script for proper config to make script works on your environment
 
 Some screenshots:
