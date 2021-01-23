@@ -1,84 +1,90 @@
-import tkinter as tk
-import tkinter.ttk as ttk
+import os
+import sys
 import cv2
-import time, threading
-import os, sys
-import requests
-import base64
+import time
 import json
-import numpy as np
-from joblib import load
-from skimage import feature
-import face_recognition as fr
-from scipy.spatial import distance as dist
-import tkinter.simpledialog
-from PIL import Image, ImageTk
 import elock
+import base64
+import requests
+import threading
+import numpy as np
+import tkinter as tk
+from joblib import load
+import tkinter.ttk as ttk
+import tkinter.simpledialog
+import face_recognition as fr
+from PIL import Image, ImageTk
+from scipy.spatial import distance as dist
 
-BASE_URL        = 'http://localhost:8080/'
-TRAIN_PATH      = 'train'
-CAMERA_URI      = 0
-SAVE_INTERVAL   = 5 # Deprecated
-IMAGE_LABEL     = 'phuc'
+
+BASE_URL = 'http://172.20.10.2:8080/'
+TRAIN_PATH = 'train'
+CAMERA_URI = 0
+SAVE_INTERVAL = 5  # Deprecated
+IMAGE_LABEL = 'phuc'
 # MAX_TIME        = 5 # Deprecated
-MAX_SAMPLE      = 50
+MAX_SAMPLE = 50
 
-FONT_FACE       = cv2.FONT_HERSHEY_SIMPLEX
-FONT_SCALE      = 0.75
-THICKNESS       = 2
-THRESHOLE       = 0.85
-DEFAULT_MODEL_NAME  = 'default.model'
+FONT_FACE = cv2.FONT_HERSHEY_SIMPLEX
+FONT_SCALE = 0.75
+THICKNESS = 2
+THRESHOLE = 0.85
+DEFAULT_MODEL_NAME = 'default.model'
 DEFAULT_CONFIG_FILE = 'default.json'
-DEFAULT_CONFIG  = {}
+DEFAULT_CONFIG = {}
 
-frame_count     = 0 
-sample_count    = 0
-is_recording    = False
-start_time      = 0
-unlockStatus    = 0
+frame_count = 0
+sample_count = 0
+is_recording = False
+start_time = 0
+unlockStatus = 0
 
-# timer instance for listening to model changes 
-timer_instance  = None
-cap             = None 
-camera_view     = None
-recordButtonText= None
-recordButton    = None
-lockButton      = None
+# timer instance for listening to model changes
+timer_instance = None
+cap = None
+camera_view = None
+recordButtonText = None
+recordButton = None
+lockButton = None
 
-statusText      = None
-progressBar     = None
-imageLabelTextEdit   = None
-imageLabelText       = None
+statusText = None
+progressBar = None
+imageLabelTextEdit = None
+imageLabelText = None
 
 # face status
-isClosed        = isOpened = False
-runningModel    = None
-mutex           = threading.Lock()
-width, height   = 400, 400
+isClosed = isOpened = False
+runningModel = None
+mutex = threading.Lock()
+width, height = 400, 400
+
 
 def on_lock_click():
-    global isClosed, isOpened 
+    global isClosed, isOpened
     elock.setLock(False)
-    recordButton['state']   = 'disabled'
-    lockButton['state']     = 'disabled'
-    isClosed = isOpened     = False
+    recordButton['state'] = 'disabled'
+    lockButton['state'] = 'disabled'
+    isClosed = isOpened = False
+
 
 def parse_config():
     global DEFAULT_CONFIG
     if not os.path.isfile(DEFAULT_CONFIG_FILE):
-        DEFAULT_CONFIG = { 
-            'granted_people' : [],
+        DEFAULT_CONFIG = {
+            'granted_people': [],
             'all_people': []
         }
-        update_config() 
-        return 
+        update_config()
+        return
 
     with open(DEFAULT_CONFIG_FILE, 'r', encoding='utf8') as f:
         DEFAULT_CONFIG = json.loads(f.readline())
 
+
 def update_config():
     with open(DEFAULT_CONFIG_FILE, 'w', encoding='utf8') as f:
         f.write(json.dumps(DEFAULT_CONFIG))
+
 
 def on_record_click():
     global is_recording, sample_count, recordButtonText, IMAGE_LABEL
@@ -89,12 +95,14 @@ def on_record_click():
         progressBar.grid_forget()
         progressBar['value'] = 0
     else:
-        IMAGE_LABEL = tk.simpledialog.askstring('Person name', 'Please input person name (without space):')
+        IMAGE_LABEL = tk.simpledialog.askstring(
+            'Person name', 'Please input person name (without space):')
         if not IMAGE_LABEL:
             return
         # IMAGE_LABEL = imageLabelTextEdit.get(1.0, 'end').replace('\n', '')
         # start_time = time.time()
-        progressBar.grid(column=0, row=1, ipady=5, columnspan= 2, padx=20, pady=20)        
+        progressBar.grid(column=0, row=1, ipady=5,
+                         columnspan=2, padx=20, pady=20)
         progressBar['value'] = 0
         if not os.path.isdir(TRAIN_PATH):
             os.mkdir(TRAIN_PATH)
@@ -102,6 +110,7 @@ def on_record_click():
         is_recording = True
         recordButtonText.set('Recording ... (Press to stop)')
         statusText.set('Collect face of ' + IMAGE_LABEL)
+
 
 def invoke_train():
     url = BASE_URL+'train'
@@ -111,10 +120,12 @@ def invoke_train():
     statusText.set('Invoked training')
     return res
 
+
 def get_status():
     url = BASE_URL+'status'
     res = json.loads(requests.get(url).text)
-    return res 
+    return res
+
 
 def reload_model():
     global runningModel
@@ -130,7 +141,8 @@ def reload_model():
     mutex.release()
     statusText.set('Model reloaded')
 
-def download_model(model_name):  
+
+def download_model(model_name):
     url = BASE_URL+'model/'+model_name
     print('Going to download model %s at %s' % (model_name, url))
     r = requests.get(url, allow_redirects=True)
@@ -154,6 +166,7 @@ def download_model(model_name):
             os.remove(model_name)
         statusText.set('Error happened: ' + str(err))
 
+
 def listen_for_model_change():
     global timer_instance
     try:
@@ -161,13 +174,16 @@ def listen_for_model_change():
         if result['status'] == 'failed':
             statusText.set('Failed training face in server')
         elif result['status'] == 'trained':
-            statusText.set('Model %s trained, going to download' % result["model_name"])
+            statusText.set('Model %s trained, going to download' %
+                           result["model_name"])
             download_model(result["model_name"])
         else:
-            statusText.set('Still not receive trained status, waiting with retrieved status: %s' % result["status"])
+            statusText.set(
+                'Still not receive trained status, waiting with retrieved status: %s' % result["status"])
             threading.Timer(2.0, listen_for_model_change).start()
     except Exception as err:
         statusText.set('Error happened: ' + str(err))
+
 
 def send_data():
     _, __, files = next(os.walk(TRAIN_PATH))
@@ -177,19 +193,20 @@ def send_data():
             image_bin = f.read()
         image_label = IMAGE_LABEL
         image_base64 = base64.b64encode(image_bin)
-        myobj = { 
+        myobj = {
             'image': image_base64,
             'label': image_label
         }
         url = BASE_URL+'upload'
         try:
             res = requests.post(url, data=myobj)
-            statusString = 'Sent file %s%s. Result: %s' % (TRAIN_PATH, filename, res.text)
+            statusString = 'Sent file %s%s. Result: %s' % (
+                TRAIN_PATH, filename, res.text)
             # print(statusString)
             statusText.set(statusString)
         except Exception as err:
             statusText.set('Error happened: ' + str(err))
-            print('Error happened: '+ str(err))
+            print('Error happened: ' + str(err))
         if os.path.isfile(image_path):
             os.remove(image_path)
     print('All files sent')
@@ -200,6 +217,7 @@ def send_data():
         return
     statusText.set('Going to start listening for model changes')
     threading.Timer(2.0, listen_for_model_change).start()
+
 
 def extract_features(img):
     # resize to TARGET_SIZE
@@ -222,8 +240,10 @@ def extract_features(img):
     except:
         return [], [], []
 
+
 def get_ear(eye):
-    # compute the euclidean distances between the two sets of
+    # compute Eye Aspect Rate (EAR)
+    # Or compute the euclidean distances between the two sets of
     # vertical eye landmarks (x, y)-coordinates
     A = dist.euclidean(eye[1], eye[5])
     B = dist.euclidean(eye[2], eye[4])
@@ -238,22 +258,23 @@ def get_ear(eye):
     # return the eye aspect ratio
     return ear
 
+
 def detect_face(frame, need_labeling=False):
     face_box = ()
     features, face_landmarks, box = extract_features(frame)
-    global isClosed, isOpened 
+    global isClosed, isOpened
     if len(features) == 1 and len(face_landmarks) == 1:
         top, right, bottom, left = box
         face_landmarks = face_landmarks[0]
         try:
             # Draw a box around the face
             cv2.rectangle(frame, (left, top),
-                            (right, bottom), (0, 255, 0), 2)
+                          (right, bottom), (0, 255, 0), 2)
             left_eye = face_landmarks['left_eye']
             right_eye = face_landmarks['right_eye']
             ear_left = get_ear(left_eye)
             ear_right = get_ear(right_eye)
-            
+
             closed = ear_left <= 0.2 and ear_right <= 0.2
             if closed:
                 isClosed = True
@@ -268,14 +289,14 @@ def detect_face(frame, need_labeling=False):
                         if runningModel:
                             label, acc = predict(runningModel, features)
                             if label in DEFAULT_CONFIG['granted_people']:
-                                if recordButton['state'] == 'disabled': 
+                                if recordButton['state'] == 'disabled':
                                     recordButton['state'] = 'active'
                                     lockButton['state'] = 'active'
                                     elock.setLock(True)
                                     statusText.set('Face verified: %s' % label)
                         else:
                             label = 'unknown'
-                    except Exception as err: 
+                    except Exception as err:
                         print(err)
                         label = 'Blink your eye'
                     mutex.release()
@@ -290,10 +311,10 @@ def detect_face(frame, need_labeling=False):
             labelSize = cv2.getTextSize(
                 label, FONT_FACE, FONT_SCALE, THICKNESS)[0]
             cv2.rectangle(
-                frame, 
-                (left-1, top), 
-                (left+labelSize[0], top-labelSize[1]-20), 
-                (0, 255, 0), 
+                frame,
+                (left-1, top),
+                (left+labelSize[0], top-labelSize[1]-20),
+                (0, 255, 0),
                 cv2.FILLED
             )
             cv2.putText(frame, label, (left, top - 10),
@@ -305,11 +326,12 @@ def detect_face(frame, need_labeling=False):
         isClosed = isOpened = False
     return frame, face_box
 
+
 def show_frame():
     global is_recording, sample_count, frame_count
     _, frame = cap.read()
     frame = cv2.flip(frame, 1)
-    
+
     if is_recording:
         sub_frame = frame.copy()
         sub_frame, face_box = detect_face(sub_frame, need_labeling=False)
@@ -322,7 +344,8 @@ def show_frame():
                 cv2.imwrite(filename, frame)
                 # replace frame for displaying
                 frame = sub_frame
-                progressBar['value'] = min(100, (sample_count / MAX_SAMPLE) * 100)
+                progressBar['value'] = min(
+                    100, (sample_count / MAX_SAMPLE) * 100)
                 if sample_count == MAX_SAMPLE:
                     print('Auto end recording')
                     # call this function to forcing recording to be ended
@@ -340,6 +363,7 @@ def show_frame():
     camera_view.configure(image=imgtk)
     camera_view.after(33, show_frame)
 
+
 def predict(clf, features):
     label = clf.predict(features)[0]
     proba = clf.predict_proba(features)
@@ -348,9 +372,10 @@ def predict(clf, features):
         return 'Unknown~', acc_max
     return label, acc_max
 
+
 def main():
     parse_config()
-    # set up UI    
+    # set up UI
     root = tk.Tk()
     root.title('SmartLock')
 
@@ -363,7 +388,7 @@ def main():
     cap.set(cv2.CAP_PROP_FRAME_HEIGHT, height)
     #
     # Press 'q' to escape
-    # 
+    #
     root.bind('q', lambda e: sys.exit(0))
 
     global camera_view, recordButtonText, statusText, progressBar, imageLabelTextEdit, recordButton, lockButton
@@ -373,23 +398,28 @@ def main():
 
     style = ttk.Style()
     style.theme_use('clam')
-    style.configure("red.Horizontal.TProgressbar", foreground='red', background='red')
-    progressBar = ttk.Progressbar(root, orient=tk.HORIZONTAL, style="red.Horizontal.TProgressbar", length=300, mode='determinate', maximum=100, value=0)
-    progressBar.grid(column=0, row=1, ipady=5, columnspan= 2, padx=20, pady=20)
+    style.configure("red.Horizontal.TProgressbar",
+                    foreground='red', background='red')
+    progressBar = ttk.Progressbar(root, orient=tk.HORIZONTAL, style="red.Horizontal.TProgressbar",
+                                  length=300, mode='determinate', maximum=100, value=0)
+    progressBar.grid(column=0, row=1, ipady=5, columnspan=2, padx=20, pady=20)
     progressBar['value'] = 0
     progressBar.grid_forget()
 
     recordButtonText = tk.StringVar()
     recordButtonText.set('Add granted person')
-    recordButton = tk.Button(root, textvariable=recordButtonText, command=on_record_click, width=25, height=3) # , padx = 10, pady = 10)
+    recordButton = tk.Button(root, textvariable=recordButtonText,
+                             command=on_record_click, width=25, height=3)  # , padx = 10, pady = 10)
     recordButton.grid(column=0, row=2, padx=20, pady=10)
-    
-    lockButton = tk.Button(root, text='Lock the door', width=25, height=3, command=on_lock_click)
+
+    lockButton = tk.Button(root, text='Lock the door',
+                           width=25, height=3, command=on_lock_click)
     lockButton.grid(column=1, row=2, padx=20)
 
     statusText = tk.StringVar()
     statusText.set('Status: Idle')
-    statusLabel = tk.Label(root, textvariable=statusText, anchor='s', width=50, height=1)
+    statusLabel = tk.Label(root, textvariable=statusText,
+                           anchor='s', width=50, height=1)
     statusLabel.grid(column=0, row=3, columnspan=2, pady=20)
 
     show_frame()
@@ -400,11 +430,13 @@ def main():
         recordButton['state'] = 'disable'
         lockButton['state'] = 'disable'
         elock.setLock(True)
-        statusText.set('Verify who you are before adding granted person/unlock the door')
+        statusText.set(
+            'Verify who you are before adding granted person/unlock the door')
     else:
         statusText.set('Add first granted person to start using the lock')
 
     root.mainloop()
+
 
 # entry point
 main()
