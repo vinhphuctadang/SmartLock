@@ -17,7 +17,7 @@ def setLock(lockState):
 	GPIO.setwarnings(False)
 
 	GPIO.setup(21, GPIO.OUT)
-	lockState = {True: GPIO.HIGH, False: GPIO.LOW}[lockState]
+	lockState = { True: GPIO.HIGH, False: GPIO.LOW }[lockState]
 	GPIO.output(21,lockState)
 
 # test GPIO

@@ -17,7 +17,7 @@ from PIL import Image, ImageTk
 from scipy.spatial import distance as dist
 
 # Replace custom HOST here
-BASE_URL = 'http://172.20.10.2:8080/'
+BASE_URL = 'http://192.168.43.118:8080/'
 TRAIN_PATH = 'train'
 CAMERA_URI = 0
 SAVE_INTERVAL = 5  # Deprecated
@@ -35,6 +35,7 @@ THICKNESS = 2
 THRESHOLE = 0.85
 
 # Model and config file
+CLOSE_DOOR_DELAY = 5000
 DEFAULT_MODEL_NAME = 'default.model'
 DEFAULT_CONFIG_FILE = 'default.json'
 DEFAULT_CONFIG = {}
@@ -63,8 +64,6 @@ isClosed = isOpened = False
 runningModel = None
 mutex = threading.Lock()
 width, height = 400, 400
-
-
 
 #
 # Config management
@@ -271,6 +270,14 @@ def get_ear(eye):
     return ear
 
 
+def close_door():
+    global isClosed, isOpened
+    print('Debug: Going to lock the door')
+    elock.setLock(False)
+    recordButton['state'] = 'disable'
+    lockButton['state'] = 'disable'
+    isClosed = isOpened = False
+
 def detect_face(frame, need_labeling=False):
     face_box = ()
     features, face_landmarks, box = extract_features(frame)
@@ -294,6 +301,9 @@ def detect_face(frame, need_labeling=False):
                 isOpened = True
             acc = None
             # Human Verification: just eye blink 2 times
+            if lockButton['state'] == 'active':
+                return frame, box
+
             if need_labeling:
                 if (isClosed and isOpened):
                     mutex.acquire()
@@ -305,6 +315,7 @@ def detect_face(frame, need_labeling=False):
                                     recordButton['state'] = 'active'
                                     lockButton['state'] = 'active'
                                     elock.setLock(True)
+                                    camera_view.after(CLOSE_DOOR_DELAY, close_door)
                                     statusText.set('Face verified: %s' % label)
                         else:
                             label = 'unknown'
@@ -441,7 +452,7 @@ def main():
     if len(DEFAULT_CONFIG['granted_people']) > 0:
         recordButton['state'] = 'disable'
         lockButton['state'] = 'disable'
-        elock.setLock(True)
+        elock.setLock(False)
         statusText.set(
             'Verify who you are before adding granted person/unlock the door')
     else:
