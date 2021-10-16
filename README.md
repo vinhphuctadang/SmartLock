@@ -6,9 +6,8 @@ Script usage:
         - ID config
         - Face size and target size
 
-<<<<<<< HEAD
 2. ``camera.py``: Labelize face using specific model. 
-=======
+
 ## What we are doing:
 + We researched for efficient algorithm for face classification, end up with SVM-RBF
 ![Statistic of classifiers' accuracy](stat.png)
