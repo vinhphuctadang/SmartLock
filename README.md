@@ -53,4 +53,3 @@ Some screenshots:
 
 Please leave us feedback if there are some issues with this repo. 
 Enjoy your day!!!
->>>>>>> 39fb2fdaa0605e07461edce6004ff5303668152d
